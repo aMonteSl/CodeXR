@@ -31,17 +31,81 @@ export class ExecutePython {
         ]);
     }
 
+      public async executeDependencyAnalysis(
+          targetPath: string,
+          targetType: 'file' | 'directory',
+          deep: boolean,
+          cachePath?: string,
+          refreshRequestPath?: string,
+          projectRoot?: string,
+      ): Promise<any> {
+        const args = [
+            '--mode', 'dependencies',
+            '--type', targetType,
+            '--target', targetPath,
+        ];
+        if (deep) {
+            args.push('--deep');
+        }
+          if (cachePath) {
+              args.push('--cache', cachePath);
+          }
+          if (refreshRequestPath) {
+              args.push('--dependency-refresh', refreshRequestPath);
+          }
+          if (projectRoot) {
+              args.push('--project-root', projectRoot);
+          }
+          return this.executePythonScript('main.py', args);
+      }
+
     /**
      * Ejecuta análisis Python según el tipo de análisis
      * 
      * @param session - Sesión de análisis unificada
      * @returns Promise con los datos JSON del análisis
      */
-    public async executeAnalysis(session: UnifiedAnalysisSession): Promise<any> {
+    public async executeAnalysis(
+        session: UnifiedAnalysisSession,
+        options: { silent?: boolean } = {},
+    ): Promise<any> {
         console.log(`EXECUTE_PYTHON:  Starting Python analysis execution...`);
         console.log(`EXECUTE_PYTHON: Analysis mode: ${session.analysisMode}`);
         console.log(`EXECUTE_PYTHON: Target type: ${session.targetType}`);
         console.log(`EXECUTE_PYTHON: Target path: ${session.targetPath}`);
+
+        const runAnalysis = async (progress: vscode.Progress<{message: string; increment: number}>): Promise<any> => {
+            progress.report({
+                increment: 0,
+                message: `Starting ${session.analysisMode} analysis...`,
+            });
+
+            try {
+                if (session.analysisMode === 'LivePanel' && session.targetType === 'file') {
+                    console.log('EXECUTE_PYTHON:  File LivePanel analysis requested');
+                    return await this.executeFileAnalysis(session, progress);
+                } else if (session.analysisMode === 'LivePanel' && session.targetType === 'directory') {
+                    console.log('EXECUTE_PYTHON:  Directory LivePanel analysis requested');
+                    return await this.executeDirectoryAnalysis(session, progress);
+                } else if (session.analysisMode === 'VisualizeDOM' && session.targetType === 'file') {
+                    console.log('EXECUTE_PYTHON:  HTML DOM analysis requested');
+                    return await this.executeHTMLDOMAnalysis(session, progress);
+                } else if (session.analysisMode === 'XR') {
+                    console.log('EXECUTE_PYTHON:  XR analysis requested');
+                    return await this.executeXRAnalysis(session, progress);
+                }
+
+                throw new Error(`Unknown analysis combination: ${session.analysisMode} + ${session.targetType}`);
+            } catch (error) {
+                console.error('EXECUTE_PYTHON:  Error during Python analysis:', error);
+                progress.report({ increment: 0, message: 'Analysis failed' });
+                throw error;
+            }
+        };
+
+        if (options.silent) {
+            return await runAnalysis({ report: () => {} });
+        }
 
         return await vscode.window.withProgress(
             {
@@ -49,34 +113,7 @@ export class ExecutePython {
                 title: 'CodeXR Analysis',
                 cancellable: false,
             },
-            async (progress) => {
-                progress.report({
-                    increment: 0,
-                    message: `Starting ${session.analysisMode} analysis...`,
-                });
-
-                try {
-                    if (session.analysisMode === 'LivePanel' && session.targetType === 'file') {
-                        console.log('EXECUTE_PYTHON:  File LivePanel analysis requested');
-                        return await this.executeFileAnalysis(session, progress);
-                    } else if (session.analysisMode === 'LivePanel' && session.targetType === 'directory') {
-                        console.log('EXECUTE_PYTHON:  Directory LivePanel analysis requested');
-                        return await this.executeDirectoryAnalysis(session, progress);
-                    } else if (session.analysisMode === 'VisualizeDOM' && session.targetType === 'file') {
-                        console.log('EXECUTE_PYTHON:  HTML DOM analysis requested');
-                        return await this.executeHTMLDOMAnalysis(session, progress);
-                    } else if (session.analysisMode === 'XR') {
-                        console.log('EXECUTE_PYTHON:  XR analysis requested');
-                        return await this.executeXRAnalysis(session, progress);
-                    }
-
-                    throw new Error(`Unknown analysis combination: ${session.analysisMode} + ${session.targetType}`);
-                } catch (error) {
-                    console.error('EXECUTE_PYTHON:  Error during Python analysis:', error);
-                    progress.report({ message: 'Analysis failed' });
-                    throw error;
-                }
-            },
+            runAnalysis,
         );
     }
 
@@ -96,7 +133,7 @@ export class ExecutePython {
             console.log(`EXECUTE_PYTHON: Executing file analysis with args: ${args.join(' ')}`);
             const result = await this.executePythonScript('main.py', args, progress);
 
-            if (result && result.success !== false) {
+            if (result && result?.success !== false) {
                 console.log('EXECUTE_PYTHON:  File analysis completed successfully');
                 progress?.report({ message: 'File analysis completed!' });
                 return result;
@@ -226,7 +263,7 @@ export class ExecutePython {
                 }
             }
 
-            if (result && result?.success !== false) {
+            if (result && result.success !== false) {
                 console.log('EXECUTE_PYTHON: XR_ANALYSIS:  Direct result received (no error wrapper)');
                 console.log('EXECUTE_PYTHON: XR_ANALYSIS:  Analysis result details:', {
                     functionsCount: Array.isArray(result) ? result.length : 0,
@@ -403,14 +440,15 @@ export class ExecutePython {
                 console.log(`EXECUTE_PYTHON: Arguments: [${fullArgs.map(arg => `"${arg}"`).join(', ')}]`);
                 console.log(`EXECUTE_PYTHON: Working directory: ${path.dirname(scriptPath)}`);
 
-                const process = cp.spawn(pythonExecutable, fullArgs, {
+                const childProcess = cp.spawn(pythonExecutable, fullArgs, {
                     cwd: path.dirname(scriptPath),
+                    env: process.env,
                     stdio: ['pipe', 'pipe', 'pipe'],
                 });
 
-                console.log(`EXECUTE_PYTHON:  Process spawned with PID: ${process.pid}`);
+                console.log(`EXECUTE_PYTHON:  Process spawned with PID: ${childProcess.pid}`);
 
-                process.on('error', (error) => {
+                childProcess.on('error', (error) => {
                     console.error('EXECUTE_PYTHON:  Failed to start Python process:', error);
                     console.error('EXECUTE_PYTHON: Error details:', {
                         code: (error as any).code,
@@ -428,12 +466,12 @@ export class ExecutePython {
                 let stdoutData = '';
                 let stderrData = '';
 
-                process.stdout.on('data', (data) => {
+                childProcess.stdout.on('data', (data) => {
                     stdoutData += data.toString();
                     console.log(`EXECUTE_PYTHON:  stdout chunk received (${data.toString().length} chars)`);
                 });
 
-                process.stderr.on('data', (data) => {
+                childProcess.stderr.on('data', (data) => {
                     const stderrLine = data.toString();
                     stderrData += stderrLine;
 
@@ -509,7 +547,7 @@ export class ExecutePython {
                     }
                 });
 
-                process.on('close', (code) => {
+                childProcess.on('close', (code) => {
                     console.log('EXECUTE_PYTHON: ');
                     console.log('EXECUTE_PYTHON:  ANALYSIS COMPLETED');
                     console.log(`EXECUTE_PYTHON:  Script: ${scriptName}`);

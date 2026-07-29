@@ -11,6 +11,7 @@ import { ExecutePython } from '../utils/executePython';
 import { SSEManager } from '../../../servers/runtime/sse/SSEManager';
 import { FileRequirementProcessor } from '../processors/FileRequirementProcessor';
 import { SaveFiles } from '../utils/saveFiles';
+import { analysisUpdateEvents } from '../../historical';
 
 export class ReAnalysisManager {
     private executePython: ExecutePython;
@@ -21,7 +22,10 @@ export class ReAnalysisManager {
         this.sseManager = SSEManager.getInstance();
     }
 
-    async executeDataJsonRegeneration(session: UnifiedAnalysisSession): Promise<boolean> {
+    async executeDataJsonRegeneration(
+        session: UnifiedAnalysisSession,
+        options: { notifyClients?: boolean; silent?: boolean } = {},
+    ): Promise<boolean> {
         try {
             if (!session.savedFilesPath) {
                 throw new Error(`Session ${session.id} does not have saved files path`);
@@ -31,17 +35,24 @@ export class ReAnalysisManager {
                 throw new Error(`Target file does not exist: ${session.targetPath}`);
             }
 
-            const analysisData = await this.executePython.executeAnalysis(session);
+            const analysisData = await this.executePython.executeAnalysis(session, { silent: options.silent === true });
             const newDataJsonContent = JSON.stringify(analysisData, null, 2);
             const dataJsonPath = path.join(session.savedFilesPath, 'data.json');
 
             await fs.writeFile(dataJsonPath, newDataJsonContent, 'utf-8');
             session.requiredFiles.set('data.json', newDataJsonContent);
+            analysisUpdateEvents.emit({
+                sessionId: session.id,
+                targetPath: session.targetPath,
+                updatedAt: new Date().toISOString(),
+            });
 
-            if (session.analysisMode === 'XR') {
-                this.sseManager.sendDataRefresh(session.targetPath);
-            } else {
-                this.sseManager.sendUpdate(session.targetPath);
+            if (options.notifyClients !== false) {
+                if (session.analysisMode === 'XR') {
+                    this.sseManager.sendDataRefresh(session.targetPath);
+                } else {
+                    this.sseManager.sendUpdate(session.targetPath);
+                }
             }
 
             return true;

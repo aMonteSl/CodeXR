@@ -9,7 +9,7 @@ export class VisualizationSettingsModularTreeItem extends vscode.TreeItem {
     constructor(
         label: string,
         collapsibleState: vscode.TreeItemCollapsibleState,
-        public readonly visualizationSettingsItemType: 'settings-field' | 'error',
+        public readonly visualizationSettingsItemType: 'settings-field' | 'error' | 'reset-action',
         command?: vscode.Command,
         iconPath?: vscode.ThemeIcon | vscode.Uri | { light: vscode.Uri; dark: vscode.Uri },
         tooltip?: string,
@@ -47,6 +47,26 @@ export class VisualizationSettingsModularItemFactory {
     }
     
     /**
+     * Create the "Reset to Default" action that restores every visualization
+     * setting (background, ground, environment and palette) to its default.
+     */
+    static createResetToDefaultItem(): VisualizationSettingsModularTreeItem {
+        return new VisualizationSettingsModularTreeItem(
+            'Reset to Default',
+            vscode.TreeItemCollapsibleState.None,
+            'reset-action',
+            {
+                command: 'codeXR.visualizationSettings.resetAll',
+                title: 'Reset visualization settings to default',
+            },
+            new vscode.ThemeIcon('discard'),
+            'Restore background color, ground color, environment preset and chart palette to their default values',
+            undefined,
+            'visualization-settings-reset',
+        );
+    }
+
+    /**
      * Create visualization settings items with dynamic color icons
      */
     static async createVisualizationSettingsItems(settings: VisualizationSettings, context: vscode.ExtensionContext): Promise<VisualizationSettingsModularTreeItem[]> {
@@ -71,6 +91,8 @@ export class VisualizationSettingsModularItemFactory {
                     item
                 );
             });
+
+            children.push(VisualizationSettingsModularItemFactory.createResetToDefaultItem());
 
             console.log(`VISUALIZATION_SETTINGS_MODULAR: Created ${children.length} visualization settings items with dynamic icons`);
             return children;

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
+const { readAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
 
 function readProjectFile(...segments) {
     return fs.readFileSync(path.join(projectRoot, ...segments), 'utf8');
@@ -22,47 +23,147 @@ test('directory XR parser keeps using data.json for standard and deep XR analysi
     assert.match(source, /TemplateProcessor\.generateXRVisualization\([\s\S]*'data\.json'/);
 });
 
-test('XR boats tree builder uses treePath for file analysis and filePath for directory analysis', () => {
+test('XR boats tree builder follows the shared tree contract (normal-analysis convention in every mode)', () => {
     const source = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createStructure.ts');
+    const chartPresentation = readProjectFile('src', 'babia_templates', 'charts', 'chartPresentation.ts');
+    const sceneTemplate = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
 
+    // One canonical contract — the normal analysis' original one: directory
+    // quarters split the FULL analyzed path (filePath; evolution/historical
+    // rebuild it against the original target), file mode the synthetic
+    // treePath.
     assert.match(
-        source,
-        /Adding tree builder for XR boats chart \(directory analysis\)[\s\S]*babia-treebuilder="field: filePath; split_by: \/; from: data"/,
+        chartPresentation,
+        /export const XR_BOATS_TREE_FIELDS = \{\s*directory: 'filePath',\s*file: 'treePath',\s*\} as const;/,
     );
     assert.match(
         source,
-        /Adding tree builder for XR boats chart \(file analysis\)[\s\S]*babia-treebuilder="field: treePath; split_by: \/; from: data"/,
+        /const field = isDirectoryAnalysis \? XR_BOATS_TREE_FIELDS\.directory : XR_BOATS_TREE_FIELDS\.file;/,
     );
+    assert.match(source, /babia-treebuilder="field: \$\{field\}; split_by: \/; from: data"/);
+
+    // The generator publishes the contract (plus the boats base and the
+    // per-chart presentation profiles) to the in-scene runtimes through the
+    // injected chart-base config.
+    assert.match(source, /placeholders\.set\('CHART_BASE_CONFIG', JSON\.stringify\(\{\s*boats: BOATS_BASE_COMPONENT_ATTRIBUTES,\s*presentation: CHART_PRESENTATION_PROFILES,\s*treeFields: XR_BOATS_TREE_FIELDS,\s*\}\)\)/);
+    assert.match(sceneTemplate, /<script id="codexr-chart-base-config" type="application\/json">\$\{CHART_BASE_CONFIG\}<\/script>/);
 });
 
-test('boats chart legend text keeps multiline content without width/depth and does not leak into donut', () => {
+test('XR mapping UI config includes live chart selector metadata', () => {
+    const processor = readProjectFile('src', 'babia_templates', 'processing', 'templateProcessor.ts');
+
+    assert.match(processor, /availableCharts/);
+    assert.match(processor, /dimensionsByChart/);
+    assert.match(processor, /defaultMappingsByChart/);
+    assert.match(processor, /area: \['functionCount', 'totalFunctions', 'fileCount', 'codeLines', 'totalLines'\]/);
+    assert.match(processor, /height: \['totalLines', 'codeLines', 'functionCount', 'cyclomaticComplexityNumber'\]/);
+    assert.match(processor, /color: \['cyclomaticComplexityNumber', 'language', 'fileName', 'relativePath'\]/);
+});
+
+test('local XR server prevents stale runtime script caching', () => {
+    // Static serving lives in the extracted StaticAssetServer module.
+    const server = readProjectFile('src', 'servers', 'runtime', 'http', 'staticAssets.ts');
+
+    assert.ok(server.includes('/\\.(:html|js|mjs|json|map)$/i.test(filePath)'));
+    assert.match(server, /Cache-Control'\] = 'no-store, no-cache, must-revalidate, max-age=0'/);
+    assert.match(server, /headers\.Pragma = 'no-cache'/);
+    assert.match(server, /headers\.Expires = '0'/);
+});
+
+test('Babia Boats is the default XR file and directory chart while CodeXR Boats remains paused', () => {
+    const config = readProjectFile('src', 'code_analysis', 'configuration', 'models', 'analysisConfiguration.ts');
+    const profile = readProjectFile(
+        'src',
+        'code_analysis',
+        'views',
+        'subsections',
+        'analysis_settings',
+        'profile_configuration',
+        'profileConfiguration.ts',
+    );
     const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
+
+    assert.match(config, /chartTypeFile: 'boats'/);
+    assert.match(config, /chartTypeDirectory: 'boats'/);
+    assert.match(profile, /chartTypeFile: 'boats'/);
+    assert.match(profile, /chartTypeDirectory: 'boats'/);
+    assert.doesNotMatch(templateCharts, /id: 'codexr-boats'/);
+    assert.match(templateCharts, /id: 'boats'[\s\S]*name: 'Babia Boats'/);
+});
+
+test('boats base construction is canonical: one object feeds the template, no duplicate remains', () => {
+    const chartPresentation = readProjectFile('src', 'babia_templates', 'charts', 'chartPresentation.ts');
     const createChart = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createChart.ts');
 
     assert.match(
-        templateCharts,
+        chartPresentation,
         /export const DEFAULT_BOATS_LEGEND_TEXT = `\{name\}\r?\n\{fheight\} \(height\): \{height\}\r?\n\{farea\} \(area\): \{area\}\r?\n\{fcolor\} \(color\): \{color\}`;/,
     );
-    assert.equal(templateCharts.includes("export const DEFAULT_BOATS_LEGEND_TEXT = '{name}\\\\n"), false);
+    assert.equal(chartPresentation.includes("export const DEFAULT_BOATS_LEGEND_TEXT = '{name}\\\\n"), false);
 
-    const boatsBlock = templateCharts.match(/babia-boats="from: tree;[\s\S]*?class="babiaxraycasterclass">/);
-    assert.ok(boatsBlock);
-    assert.match(boatsBlock[0], /legend_text: \$\{DEFAULT_BOATS_LEGEND_TEXT\};/);
-    assert.match(boatsBlock[0], /height_building_legend: -0\.5;/);
-    assert.match(boatsBlock[0], /legend_scale: 0\.25;/);
-    assert.match(boatsBlock[0], /legend_lookat: \[laser-controls\];/);
-    assert.match(boatsBlock[0], /extra: 1;/);
-    assert.match(boatsBlock[0], /height_quarter_legend_box: 0\.01;/);
-    assert.match(boatsBlock[0], /height_quarter_legend_title: 2\.5/);
-    assert.match(templateCharts, /scale="0\.01 0\.05 0\.01"/);
-    assert.doesNotMatch(boatsBlock[0], /\{fwidth\}|\{fdepth\}|\{width\}|\{depth\}/);
+    // The canonical base object carries the full boats construction.
+    const baseBlock = chartPresentation.match(/export const BOATS_BASE_COMPONENT_ATTRIBUTES[\s\S]*?\n\};/);
+    assert.ok(baseBlock);
+    assert.match(baseBlock[0], /legend: true,/);
+    assert.match(baseBlock[0], /legend_text: DEFAULT_BOATS_LEGEND_TEXT,/);
+    assert.match(baseBlock[0], /height_building_legend: -0\.5,/);
+    assert.match(baseBlock[0], /legend_scale: 0\.25,/);
+    assert.match(baseBlock[0], /legend_lookat: '\[camera\]',/);
+    assert.match(baseBlock[0], /axis_name: true,/);
+    assert.match(baseBlock[0], /extra: 1,/);
+    assert.match(baseBlock[0], /separation: 0\.5,/);
+    assert.match(baseBlock[0], /zone_elevation: 0\.01,/);
+    assert.match(baseBlock[0], /height_quarter_legend_box: 0\.01,/);
+    assert.match(baseBlock[0], /height_quarter_legend_title: 2\.5,/);
+    assert.doesNotMatch(baseBlock[0], /\{fwidth\}|\{fdepth\}|\{width\}|\{depth\}/);
 
-    const donutBlock = templateCharts.match(/babia-doughnut="from: data;[\s\S]*?axis_name: true"/);
-    assert.ok(donutBlock);
-    assert.equal(donutBlock[0].includes('legend_text'), false);
+    // The rendered template is BUILT from the profile object — assert on the
+    // compiled output, where drift would actually surface.
+    const { chartTemplates } = require(path.join(projectRoot, 'out', 'babia_templates', 'charts', 'templateCharts.js'));
+    const boats = chartTemplates.find((chart) => chart.id === 'boats');
+    assert.ok(boats);
+    assert.match(boats.htmlTemplate, /babia-boats="from: tree;/);
+    assert.match(boats.htmlTemplate, /legend_text: \{name\}/);
+    assert.match(boats.htmlTemplate, /height_quarter_legend_title: 2\.5/);
+    assert.match(boats.htmlTemplate, /scale="0\.01 0\.05 0\.01"/);
+    assert.match(boats.htmlTemplate, /codexr-boats-layout-stability="enabled: true"/);
 
-    assert.match(createChart, /legend_text: \$\{DEFAULT_BOATS_LEGEND_TEXT\};/);
-    assert.doesNotMatch(createChart, /\{fwidth\}|\{fdepth\}|\{width\}|\{depth\}/);
+    const donut = chartTemplates.find((chart) => chart.id === 'donut');
+    assert.ok(donut);
+    assert.equal(donut.htmlTemplate.includes('legend_text'), false);
+    assert.equal(donut.htmlTemplate.includes('codexr-boats-layout-stability'), false);
+
+    // The dead boats duplicate is gone from createChart: every chart comes
+    // from the canonical template list.
+    assert.doesNotMatch(createChart, /babia-boats|createDefaultBoatsChart|DEFAULT_BOATS_LEGEND_TEXT/);
+    assert.match(createChart, /chartTemplates\.find\(\(candidate\) => candidate\.id === chartId\)/);
+});
+
+test('pie and donut XR chart templates render upright on the analysis table', () => {
+    // Pie slices and doughnut toruses are flat by construction: Babia's own
+    // demos stand them with rotation 90 0 0 on the entity, and the profile is
+    // the single source of that rotation for the generator AND the live
+    // chart switch.
+    const { CHART_PRESENTATION_PROFILES } = require(path.join(projectRoot, 'out', 'babia_templates', 'charts', 'chartPresentation.js'));
+    assert.equal(CHART_PRESENTATION_PROFILES.pie.rotation, '90 0 0');
+    assert.equal(CHART_PRESENTATION_PROFILES.donut.rotation, '90 0 0');
+    assert.equal(CHART_PRESENTATION_PROFILES.pie.fit, 'uniform');
+    assert.equal(CHART_PRESENTATION_PROFILES.donut.fit, 'uniform');
+
+    const { chartTemplates } = require(path.join(projectRoot, 'out', 'babia_templates', 'charts', 'templateCharts.js'));
+    const donut = chartTemplates.find((chart) => chart.id === 'donut');
+    const pie = chartTemplates.find((chart) => chart.id === 'pie');
+    assert.ok(donut);
+    assert.ok(pie);
+    assert.match(donut.htmlTemplate, /babia-doughnut=/);
+    assert.match(donut.htmlTemplate, /rotation="90 0 0"/);
+    assert.match(pie.htmlTemplate, /babia-pie=/);
+    assert.match(pie.htmlTemplate, /rotation="90 0 0"/);
+    for (const chart of chartTemplates) {
+        if (chart.id !== 'pie' && chart.id !== 'donut') {
+            assert.match(chart.htmlTemplate, /rotation="0 0 0"/, `${chart.id} stays unrotated`);
+        }
+    }
 });
 
 test('XR template keeps babia-queryjson bound to the injected DATA_SOURCE placeholder', () => {
@@ -74,12 +175,30 @@ test('XR template keeps babia-queryjson bound to the injected DATA_SOURCE placeh
     );
 });
 
+test('XR template owns the initial chart through a CodeXR analysis surface', () => {
+    const template = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
+    const processor = readProjectFile('src', 'babia_templates', 'processing', 'templateProcessor.ts');
+    const modeRuntime = readAssembledRuntime('analysis-mode', 'analysisModeRuntime.js');
+
+    assert.match(template, /id="codexrAnalysisSurface"[\s\S]*data-codexr-analysis-surface="true"/);
+    assert.match(template, /id="codexrNormalAnalysisRoot"[\s\S]*data-codexr-analysis-mode="single"/);
+    assert.ok(template.indexOf('${TREE_BUILDER}') > template.indexOf('id="codexrNormalAnalysisRoot"'));
+    assert.ok(template.indexOf('${CHART_COMPONENT}') > template.indexOf('id="codexrNormalAnalysisRoot"'));
+    assert.match(processor, /normalSurfaceId: 'codexrAnalysisSurface'/);
+    assert.match(processor, /normalRootId: 'codexrNormalAnalysisRoot'/);
+    assert.match(processor, /normalEntityIds: \['codexrNormalAnalysisRoot'\]/);
+    assert.match(processor, /normalDataEntityIds: \['data'\]/);
+    assert.match(processor, /chartEntityIds: chartEntityId \? \[chartEntityId\] : \[\]/);
+    assert.match(modeRuntime, /getNormalDataEntities\(getConfig\(\)\)/);
+    assert.doesNotMatch(modeRuntime, /querySelectorAll\('\[babia-queryjson\]'\)/);
+});
+
 test('XR template includes local CodeXR room component while preserving configurable environment', () => {
     const template = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
 
     assert.doesNotMatch(template, /aframe-lounge-component\.min\.js/);
-    assert.match(template, /src="\.\/codexrRoomRuntime\.js"/);
-    assert.match(template, /src="\.\/codexrMultiScreenManagerRuntime\.js"/);
+    assert.match(template, /src="\.\/codexrRoomRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(template, /src="\.\/codexrMultiScreenManagerRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(
         template,
         /<a-entity id="env" environment="preset: \$\{ENVIRONMENT_PRESET\}; groundColor: \$\{GROUND_COLOR\}" hide-on-enter-ar><\/a-entity>/,
@@ -90,8 +209,38 @@ test('XR template includes local CodeXR room component while preserving configur
     assert.match(template, /codexr-multi-screen-manager="maxScreens: 5; wall: west"/);
     assert.match(template, /codexr-room="[\s\S]*openSide: south;/);
     assert.match(template, /\.\/assets\/codexr\/xr-room\/textures\/wall\.svg/);
-    assert.match(template, /<a-entity id="rig" movement-controls="fly: false" position="0\.07 1\.75 -10\.75">/);
-    assert.match(template, /src="\.\/chartPedestalRuntime\.js"/);
+    // Eye height lives on the RIG, permanently — never on the camera. WebXR
+    // only ever touches the camera entity's local transform (look-controls
+    // zeroes it for a real session, restores it on exit); the rig is never
+    // moved vertically by anything, so a height set here survives every
+    // enter-vr/exit-vr untouched, in the browser, the emulator or a headset.
+    assert.match(
+        template,
+        /<a-entity id="rig" movement-controls="fly: false" position="0\.07 1\.75 -10\.75"\s+codexr-immersive-rig="arX: 0\.07; arZ: -14\.7">/,
+    );
+    assert.match(template, /<a-entity id="head" camera position="0 0 0" look-controls>/);
+    assert.match(template, /src="\.\/codexrImmersiveRigRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    // Locomotion in VR/AR is entirely native movement-controls/gamepad-controls
+    // (left stick walks, right stick turns) — it needs 'gamepad' left IN the
+    // default controls list. Excluding it silently killed all VR movement once.
+    assert.doesNotMatch(template, /movement-controls="[^"]*controls:\s*keyboard/);
+    assert.doesNotMatch(template, /codexrXrLocomotionRuntime\.js/);
+    assert.doesNotMatch(template, /codexr-xr-locomotion/);
+    // laser-controls owns each controller: it adds the per-device component
+    // itself and supplies the raycaster origin/direction a Touch controller
+    // needs. Hand-authoring either is what made the ray point above the aim.
+    assert.match(template, /<a-entity id="leftController" laser-controls="hand: left"><\/a-entity>/);
+    assert.match(template, /<a-entity id="rightController" laser-controls="hand: right"><\/a-entity>/);
+    assert.match(template, /src="\.\/analysisTableRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(template, /src="\.\/codexrCommonRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.doesNotMatch(template, /src="\.\/codexrVisualStyleRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.doesNotMatch(template, /src="\.\/codeXrBoatsRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(template, /src="\.\/historicalComparisonRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(template, /src="\.\/projectEvolutionRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.ok(template.indexOf('historicalComparisonRuntime.js') < template.indexOf('projectEvolutionRuntime.js'));
+    assert.ok(template.indexOf('codexrCommonRuntime.js') < template.indexOf('dependencyGraphRuntime.js'));
+    assert.match(template, /id="codexrAnalysisTable"/);
+    assert.match(template, /codexr-analysis-table=/);
 });
 
 test('XR and DOM templates pin aframe-babia-components to the supported version', () => {
@@ -107,61 +256,114 @@ test('XR parsers include CodeXR room runtime in generated assets', () => {
     const directoryParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'directoryXRParser.ts');
 
     assert.match(fileParser, /copyCodeXrRoomAssetsToOutput/);
+    assert.match(fileParser, /copyCodeXrCommonRuntimeToOutput/);
+    assert.match(fileParser, /CODEXR_COMMON_RUNTIME_OUTPUT_NAME/);
+    assert.doesNotMatch(fileParser, /CODEXR_VISUAL_STYLE_RUNTIME_OUTPUT_NAME/);
+    assert.doesNotMatch(fileParser, /copyCodeXrVisualStyleRuntimeToOutput/);
+    assert.doesNotMatch(fileParser, /CODEXR_BOATS_RUNTIME_OUTPUT_NAME/);
     assert.match(fileParser, /CODEXR_ROOM_RUNTIME_OUTPUT_NAME/);
     assert.match(fileParser, /copyVirtualScreenManagerRuntimeToOutput/);
     assert.match(fileParser, /VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME/);
-    assert.match(fileParser, /copyChartPedestalRuntimeToOutput/);
-    assert.match(fileParser, /CHART_PEDESTAL_RUNTIME_OUTPUT_NAME/);
+    assert.match(fileParser, /copyAnalysisTableRuntimeToOutput/);
+    assert.match(fileParser, /ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME/);
     assert.match(directoryParser, /readCodeXrRoomRuntimeContent/);
+    assert.match(directoryParser, /readCodeXrCommonRuntimeContent/);
+    assert.match(directoryParser, /CODEXR_COMMON_RUNTIME_OUTPUT_NAME/);
+    assert.doesNotMatch(directoryParser, /CODEXR_VISUAL_STYLE_RUNTIME_OUTPUT_NAME/);
+    assert.doesNotMatch(directoryParser, /readCodeXrVisualStyleRuntimeContent/);
+    assert.doesNotMatch(directoryParser, /CODEXR_BOATS_RUNTIME_OUTPUT_NAME/);
     assert.match(directoryParser, /readCodeXrRoomTextureContents/);
     assert.match(directoryParser, /readVirtualScreenManagerRuntimeContent/);
-    assert.match(directoryParser, /readChartPedestalRuntimeContent/);
+    assert.match(directoryParser, /readAnalysisTableRuntimeContent/);
     assert.match(directoryParser, /generatedFiles\.set\(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent\)/);
+    assert.match(directoryParser, /generatedFiles\.set\(CODEXR_COMMON_RUNTIME_OUTPUT_NAME, codexrCommonRuntimeContent\)/);
+    assert.doesNotMatch(directoryParser, /generatedFiles\.set\(CODEXR_VISUAL_STYLE_RUNTIME_OUTPUT_NAME, codexrVisualStyleRuntimeContent\)/);
+    assert.doesNotMatch(directoryParser, /generatedFiles\.set\(CODEXR_BOATS_RUNTIME_OUTPUT_NAME, codeXrBoatsRuntimeContent\)/);
+    assert.doesNotMatch(directoryParser, /codeXrBoatsTextures\.forEach\(\(asset\) => \{/);
     assert.match(directoryParser, /generatedFiles\.set\(CODEXR_ROOM_RUNTIME_OUTPUT_NAME, codexrRoomRuntimeContent\)/);
-    assert.match(directoryParser, /generatedFiles\.set\(CHART_PEDESTAL_RUNTIME_OUTPUT_NAME, chartPedestalRuntimeContent\)/);
+    assert.match(directoryParser, /generatedFiles\.set\(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME, analysisTableRuntimeContent\)/);
+    assert.match(directoryParser, /generatedFiles\.set\(HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME, historicalComparisonRuntimeContent\)/);
+    assert.match(fileParser, /copyProjectEvolutionRuntimeToOutput/);
+    assert.match(fileParser, /PROJECT_EVOLUTION_RUNTIME_OUTPUT_NAME/);
+    assert.match(directoryParser, /readProjectEvolutionRuntimeContent/);
+    assert.match(directoryParser, /generatedFiles\.set\(PROJECT_EVOLUTION_RUNTIME_OUTPUT_NAME, projectEvolutionRuntimeContent\)/);
     assert.match(directoryParser, /generatedFiles\.set\(asset\.relativeOutputPath, asset\.content\)/);
 });
 
-test('all XR charts share the same chart-pedestal preset and the programmatic boats fallback reuses it', () => {
+test('all XR charts share the containment preset', () => {
     const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
-    const createChart = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createChart.ts');
 
     assert.match(templateCharts, /export const XR_TABLE_BOOTSTRAP_PLANAR_MAX = 0\.84;/);
-    assert.match(templateCharts, /export const XR_TABLE_STEADY_PLANAR_MIN = 1\.30;/);
-    assert.match(templateCharts, /export const XR_TABLE_STEADY_PLANAR_MAX = 1\.35;/);
-    assert.match(templateCharts, /export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;[\s\S]*targetWidth: 5\.614;[\s\S]*bootstrapPlanarMaxRatio: \$\{XR_TABLE_BOOTSTRAP_PLANAR_MAX\};[\s\S]*minPlanarOccupancyRatio: \$\{XR_TABLE_STEADY_PLANAR_MIN\};[\s\S]*maxPlanarOccupancyRatio: \$\{XR_TABLE_STEADY_PLANAR_MAX\};[\s\S]*minHeightOccupancyRatio: 0\.45;[\s\S]*heightBandMinRatio: \$\{XR_TABLE_HEIGHT_BAND_MIN\};[\s\S]*heightBandMaxRatio: \$\{XR_TABLE_HEIGHT_BAND_MAX\};[\s\S]*tableEdgeMargin: 0\.18;[\s\S]*stabilizationStablePasses: 3`;/);
+    assert.match(templateCharts, /export const XR_TABLE_STEADY_PLANAR_MIN = 0\.78;/);
+    assert.match(templateCharts, /export const XR_TABLE_STEADY_PLANAR_MAX = 0\.92;/);
+    assert.match(templateCharts, /export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;[\s\S]*targetWidth: 5\.614;[\s\S]*bootstrapPlanarMaxRatio: \$\{XR_TABLE_BOOTSTRAP_PLANAR_MAX\};[\s\S]*minPlanarOccupancyRatio: \$\{XR_TABLE_STEADY_PLANAR_MIN\};[\s\S]*maxPlanarOccupancyRatio: \$\{XR_TABLE_STEADY_PLANAR_MAX\};[\s\S]*heightBandMinRatio: \$\{XR_TABLE_HEIGHT_BAND_MIN\};[\s\S]*heightBandMaxRatio: \$\{XR_TABLE_HEIGHT_BAND_MAX\};[\s\S]*tableEdgeMargin: 0\.18;[\s\S]*periodicContainmentEnabled: true;[\s\S]*stabilizationStablePasses: 3;[\s\S]*transformTransitionMs: 650;[\s\S]*hardHeightGuardEnabled: true`;/);
 
-    const matches = templateCharts.match(/codexr-chart-pedestal="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/g) || [];
-    assert.equal(matches.length, 8);
-    assert.equal(templateCharts.includes('codexr-boats-pedestal'), false);
-    assert.match(createChart, /UNIVERSAL_XR_TABLE_SETTINGS/);
-    assert.match(createChart, /codexr-chart-pedestal="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/);
-    assert.match(createChart, /babia-boats="from: tree;/);
+    // Every template is emitted by the shared entity builder, so the preset
+    // appears once in the source and eight times in the rendered output.
+    assert.match(templateCharts, /function buildChartEntityHtml\(/);
+    const sourceMatches = templateCharts.match(/codexr-chart-containment="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/g) || [];
+    assert.equal(sourceMatches.length, 1);
+    const { chartTemplates } = require(path.join(projectRoot, 'out', 'babia_templates', 'charts', 'templateCharts.js'));
+    assert.equal(chartTemplates.length, 8);
+    for (const chart of chartTemplates) {
+        assert.ok(chart.htmlTemplate.includes('codexr-chart-containment="enabled: true;'), `${chart.id} carries the containment preset`);
+        assert.ok(chart.htmlTemplate.includes(`data-codexr-active-chart-id="${chart.id}"`), `${chart.id} declares its chart id for the fit profiles`);
+    }
+    assert.doesNotMatch(templateCharts, /id: 'codexr-boats'/);
+    assert.match(templateCharts, /id: 'boats'[\s\S]*name: 'Babia Boats'/);
 });
 
 test('XR live SSE refresh lets Babia rebuild boats from refreshed sources instead of forcing a blind chart rebuild', () => {
     const source = readProjectFile('templates', 'xr', 'sse', 'live_sse_fileXR.js');
 
     assert.match(source, /const CHART_COMPONENT_TYPES = \[/);
+    assert.doesNotMatch(source, /'codexr-boats'/);
     assert.match(source, /'babia-boats'/);
     assert.match(source, /function getChartEntities\(\)/);
     assert.match(source, /function hasBoatsChart\(chartEntities\)/);
-    assert.match(source, /renormalizeChartPedestals\('analysis-updated'/);
-    assert.match(source, /renormalizeChartPedestals\('analysis-updated-boats-settled'/);
-    assert.match(source, /renormalizeChartPedestals\('dataRefresh-boats-settled'/);
+    assert.match(source, /renormalizeChartContainment\('analysis-updated'/);
+    assert.match(source, /renormalizeChartContainment\('analysis-updated-boats-settled'/);
+    assert.match(source, /renormalizeChartContainment\('dataRefresh-boats-settled'/);
     assert.doesNotMatch(source, /removeAttribute\(type\)/);
     assert.doesNotMatch(source, /babiaxraycasterclass/);
 });
 
-test('mapping UI triggers chart pedestal renormalization immediately and after geometry settles', () => {
-    const mappingUiRuntime = readProjectFile('templates', 'components', 'codexr', 'xr-chart-mapping-ui', 'xrChartMappingUiRuntime.js');
+test('mapping UI renormalizes all active comparison charts transactionally', () => {
+    const mappingUiRuntime = readAssembledRuntime('xr-chart-mapping-ui', 'xrChartMappingUiRuntime.js');
 
-    assert.match(mappingUiRuntime, /function requestChartPedestalRenormalize\(reason\)/);
-    assert.match(mappingUiRuntime, /chartPedestalRuntime\.renormalizeAll\(reason \|\| 'mapping-ui-change'\)/);
-    assert.match(mappingUiRuntime, /chartPedestalRuntime\.renormalizeAll\(\(reason \|\| 'mapping-ui-change'\) \+ '-settled'\)/);
+    assert.match(mappingUiRuntime, /function requestChartContainmentRenormalize\(reason\)/);
+    assert.match(mappingUiRuntime, /analysisTableRuntime\.renormalizeAll\(reason \|\| 'mapping-ui-change'\)/);
+    // One request, on the next frame. The extra 300 ms "settled" pass was a
+    // second retry mechanism competing with the containment component's own
+    // (markWaitingGeometry + scheduleRetry); its only visible effect was a late
+    // re-fit over an already-correct scene — the flash on entering an analysis.
+    assert.doesNotMatch(mappingUiRuntime, /'-settled'/);
+    assert.match(mappingUiRuntime, /function getChartEntities\(config\)/);
+    assert.match(mappingUiRuntime, /setChartEntityIds: function \(chartEntityIds, options\)/);
+    assert.match(mappingUiRuntime, /if \(!options \|\| options\.renormalize !== false\) \{/);
     assert.match(mappingUiRuntime, /applyDimensionSelection\(config, dimensionId, fieldName, options\)/);
     assert.match(mappingUiRuntime, /var alreadySelected = state\.selectedByDimension\[dimensionId\] === fieldName;/);
     assert.match(mappingUiRuntime, /var forceSelection = !!\(options && options\.force === true\);/);
     assert.match(mappingUiRuntime, /if \(alreadySelected && !forceSelection\) \{/);
     assert.match(mappingUiRuntime, /schedulePendingMappingValidation\(config, state\.pendingMappingToken\);/);
+    assert.match(mappingUiRuntime, /requestChartContainmentRenormalize\('mapping-ui-validation-start'\)/);
+    assert.match(mappingUiRuntime, /runtime\.waitForChartsStable\(chartTargets/);
+    assert.match(mappingUiRuntime, /timeoutMs: 26000/);
+    assert.match(mappingUiRuntime, /stablePasses: 2/);
+    assert.match(mappingUiRuntime, /registerPanelView: registerPanelView/);
+    assert.match(mappingUiRuntime, /showPanelView: showPanelView/);
+    assert.match(mappingUiRuntime, /setPanelViewHeight: setPanelViewHeight/);
+});
+
+test('analysis table exposes stable geometry states and symmetric historical zones', () => {
+    const runtime = readAssembledRuntime('analysis-table', 'analysisTableRuntime.js');
+
+    assert.match(runtime, /geometryState: 'rebuilding'/);
+    assert.match(runtime, /geometryState: stabilized \? 'stabilized' : 'valid'/);
+    assert.match(runtime, /waitForChartsStable = function \(targets, options\)/);
+    assert.match(runtime, /state: allReady \? 'valid-timeout' : 'timeout'/);
+    assert.match(runtime, /getAnalysisTableZones = function \(mode\)/);
+    assert.match(runtime, /var zoneWidth = \(fullWidth - centerGap\) \/ 2/);
+    assert.match(runtime, /anchorX: -centerOffset/);
+    assert.match(runtime, /anchorX: centerOffset/);
 });

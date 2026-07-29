@@ -155,7 +155,7 @@ export class VisualizationLauncher {
             // Check for duplicate fields
             const duplicateFields = this.findDuplicateFields(state);
             if (duplicateFields.length > 0) {
-                message += `\n⚠️ Duplicate field usage: ${duplicateFields.join(', ')}`;
+                message += `\nWarning: Duplicate field usage: ${duplicateFields.join(', ')}`;
             }
             
             vscode.window.showInformationMessage(`Dimension Mapping Status:\n${message}`);
@@ -223,7 +223,7 @@ export class VisualizationLauncher {
                 let description = displayInfo.description;
                 
                 if (isAlreadyUsed) {
-                    label += ' ⚠️';
+                    label += ' (warning)';
                     description += ' (already used in another dimension)';
                 }
                 
@@ -361,7 +361,7 @@ export class VisualizationLauncher {
             
             if (launchResult.success && launchResult.serverUrl) {
                 vscode.window.showInformationMessage(
-                    `🚀 Visualization '${visualizationName}' launched successfully!`,
+                    `Visualization '${visualizationName}' launched successfully!`,
                     'View in Browser'
                 ).then(selection => {
                     if (selection === 'View in Browser' && launchResult.serverUrl) {

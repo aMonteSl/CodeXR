@@ -33,32 +33,32 @@ test('BabiaXR chart templates keep the audited dimension type contract', () => {
     const createChart = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createChart.ts');
 
     assertChartContract(templateCharts, 'bars', [
-        { name: 'x_axis', type: 'text', valueRule: 'text-non-empty' },
+        { name: 'x_axis', type: 'any' },
         { name: 'height', type: 'numeric', valueRule: 'numeric-finite' },
     ]);
     assertChartContract(templateCharts, 'barsmap', [
-        { name: 'x_axis', type: 'text', valueRule: 'text-non-empty' },
-        { name: 'z_axis', type: 'text', valueRule: 'text-non-empty' },
+        { name: 'x_axis', type: 'any' },
+        { name: 'z_axis', type: 'any' },
         { name: 'height', type: 'numeric', valueRule: 'numeric-finite' },
     ]);
     assertChartContract(templateCharts, 'cyls', [
-        { name: 'x_axis', type: 'text', valueRule: 'text-non-empty' },
+        { name: 'x_axis', type: 'any' },
         { name: 'height', type: 'numeric', valueRule: 'numeric-finite' },
         { name: 'radius', type: 'numeric', valueRule: 'numeric-positive' },
     ]);
     assertChartContract(templateCharts, 'cylsmap', [
-        { name: 'x_axis', type: 'text', valueRule: 'text-non-empty' },
-        { name: 'z_axis', type: 'text', valueRule: 'text-non-empty' },
+        { name: 'x_axis', type: 'any' },
+        { name: 'z_axis', type: 'any' },
         { name: 'height', type: 'numeric', valueRule: 'numeric-finite' },
         { name: 'radius', type: 'numeric', valueRule: 'numeric-positive' },
     ]);
     assertChartContract(templateCharts, 'donut', [
-        { name: 'key', type: 'text', valueRule: 'text-non-empty' },
-        { name: 'size', type: 'numeric', valueRule: 'numeric-finite' },
+        { name: 'key', type: 'any' },
+        { name: 'size', type: 'numeric', valueRule: 'numeric-positive' },
     ]);
     assertChartContract(templateCharts, 'pie', [
-        { name: 'key', type: 'text', valueRule: 'text-non-empty' },
-        { name: 'size', type: 'numeric', valueRule: 'numeric-finite' },
+        { name: 'key', type: 'any' },
+        { name: 'size', type: 'numeric', valueRule: 'numeric-positive' },
     ]);
     assertChartContract(templateCharts, 'bubbles', [
         { name: 'x_axis', type: 'any' },
@@ -67,14 +67,15 @@ test('BabiaXR chart templates keep the audited dimension type contract', () => {
         { name: 'radius', type: 'numeric', valueRule: 'numeric-positive' },
     ]);
     assertChartContract(templateCharts, 'boats', [
-        { name: 'area', type: 'numeric', valueRule: 'numeric-finite' },
+        { name: 'area', type: 'numeric', valueRule: 'numeric-positive' },
         { name: 'height', type: 'numeric', valueRule: 'numeric-finite' },
         { name: 'color', type: 'any' },
     ]);
 
-    assert.match(createChart, /name: 'area'[\s\S]*dataType: 'numeric'[\s\S]*valueRule: 'numeric-finite'/);
-    assert.match(createChart, /name: 'height'[\s\S]*dataType: 'numeric'[\s\S]*valueRule: 'numeric-finite'/);
-    assert.match(createChart, /name: 'color'[\s\S]*dataType: 'any'/);
+    // createChart no longer keeps its own boats contract: every chart —
+    // dimensions included — resolves from the canonical template list.
+    assert.doesNotMatch(createChart, /babia-boats|createDefaultBoatsChart/);
+    assert.match(createChart, /chartTemplates\.find\(\(candidate\) => candidate\.id === chartId\)/);
     assert.doesNotMatch(templateCharts, /name: 'width'[\s\S]*id: 'boats'/);
     assert.doesNotMatch(templateCharts, /name: 'depth'[\s\S]*id: 'boats'/);
 });

@@ -1,0 +1,11 @@
+{
+  "output": "codexrCollaborationRuntime.js",
+  "parts": [
+    "moduleAndConfig.js",
+    "clientCore.js",
+    "entitySync.js",
+    "disconnectScreen.js",
+    "presenceAvatars.js",
+    "publicApi.js"
+  ]
+}

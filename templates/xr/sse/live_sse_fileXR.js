@@ -1,8 +1,44 @@
 
-    console.log('🔄 Setting up EventSource for unified live reload...');
+    function hasOfflineExportMarker() {
+      try {
+        const node = document.getElementById('codexr-tooling-config-virtual-screen');
+        const config = JSON.parse(node && node.textContent ? node.textContent : '{}');
+        return config.offlineExport === true;
+      } catch (_error) {
+        return false;
+      }
+    }
 
-    const eventSource = new EventSource('/events');
+    const liveReloadDisabled = hasOfflineExportMarker();
+    const disabledEventSource = {
+      close: function () {},
+      addEventListener: function () {},
+      onopen: null,
+      onerror: null,
+      onmessage: null
+    };
+    const eventSource = liveReloadDisabled
+      ? disabledEventSource
+      : new EventSource('/events');
     let isXRMode = false;
+
+    if (liveReloadDisabled) {
+      console.log(' Offline export detected: live reload disabled.');
+    } else {
+      console.log(' Setting up EventSource for unified live reload...');
+      // Defensive compatibility for copies produced before the synchronous
+      // marker existed. Current exports never open the channel in the first
+      // place; older ones still close it as soon as their manifest is found.
+      fetch('./codexr-export-manifest.json', { cache: 'no-store' })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((manifest) => {
+          if (manifest && manifest.kind === 'codexr-export') {
+            console.log(' Offline export detected: live reload disabled.');
+            eventSource.close();
+          }
+        })
+        .catch(() => {});
+    }
     const CHART_COMPONENT_TYPES = [
       'babia-bars',
       'babia-barsmap',
@@ -14,10 +50,34 @@
       'babia-bubbles'
     ];
 
+    function getNormalRefreshRuntime() {
+      return window.CodeXRNormalAnalysisRefreshRuntime || {
+        begin: function () { return Date.now(); },
+        complete: function () {}
+      };
+    }
+
+    async function completeNormalRefresh(generation, reason, chartEntities) {
+      const chartIds = (chartEntities || [])
+        .map(chart => chart && chart.id)
+        .filter(Boolean);
+      if (chartIds.length && window.CodeXRAnalysisTableRuntime?.waitForChartsStable) {
+        await window.CodeXRAnalysisTableRuntime.waitForChartsStable(chartIds, {
+          timeoutMs: 8000,
+          pollMs: 100,
+          stablePasses: 2
+        });
+      }
+      getNormalRefreshRuntime().complete(generation);
+      document.dispatchEvent(new CustomEvent('codexr-normal-analysis-refreshed', {
+        detail: { generation: generation, reason: reason }
+      }));
+    }
+
     // Check if we're in an A-Frame scene
     function checkXRMode() {
       isXRMode = !!document.querySelector('a-scene');
-      console.log(isXRMode ? '🥽 XR mode detected' : '🖥️ Standard mode detected');
+      console.log(isXRMode ? ' XR mode detected' : ' Standard mode detected');
       return isXRMode;
     }
 
@@ -32,7 +92,9 @@
     }
 
     function hasBoatsChart(chartEntities) {
-      return chartEntities.some(chartEntity => chartEntity && chartEntity.hasAttribute && chartEntity.hasAttribute('babia-boats'));
+      return chartEntities.some(chartEntity => chartEntity && chartEntity.hasAttribute && (
+        chartEntity.hasAttribute('babia-boats')
+      ));
     }
 
     function restoreXrUiState(mappingUiRuntime, mappingUiState, chartDebugRuntime, chartDebugState) {
@@ -44,12 +106,12 @@
       }
     }
 
-    function renormalizeChartPedestals(reason, mappingUiRuntime) {
-      const chartPedestalRuntime = window.CodeXRChartPedestalRuntime;
-      if (chartPedestalRuntime && typeof chartPedestalRuntime.renormalizeAll === 'function') {
-        const updated = chartPedestalRuntime.renormalizeAll(reason);
+    function renormalizeChartContainment(reason, mappingUiRuntime) {
+      const analysisTableRuntime = window.CodeXRAnalysisTableRuntime;
+      if (analysisTableRuntime && typeof analysisTableRuntime.renormalizeAll === 'function') {
+        const updated = analysisTableRuntime.renormalizeAll(reason);
         if (updated > 0) {
-          console.log('🛟 Re-normalized chart pedestal visualizations:', updated);
+          console.log('[CodeXR] Re-normalized chart containment:', updated);
         }
       }
 
@@ -59,14 +121,21 @@
     }
 
     eventSource.onopen = function() {
-      console.log('🟢 EventSource connection established');
+      console.log(' EventSource connection established');
     };
 
     eventSource.onerror = function(err) {
-      console.error('🔴 EventSource error:', err);
+      if (liveReloadDisabled) {
+        eventSource.close();
+        return;
+      }
+      console.error(' EventSource error:', err);
       // Try to reconnect after a delay
       setTimeout(() => {
-        console.log('🔄 Attempting to reconnect...');
+        if (liveReloadDisabled) {
+          return;
+        }
+        console.log(' Attempting to reconnect...');
         eventSource.close();
         new EventSource('/events');
       }, 3000);
@@ -75,7 +144,7 @@
 
     // Handle analysis-updated events
     eventSource.addEventListener('analysis-updated', function(event) {
-      console.log('🔄 Received analysis-updated event:', event);
+      console.log(' Received analysis-updated event:', event);
 
       // Find data entities using all provided selectors
       let dataEntities = [];
@@ -85,6 +154,7 @@
       
       const chartEntities = getChartEntities();
       const containsBoatsChart = hasBoatsChart(chartEntities);
+      const refreshGeneration = getNormalRefreshRuntime().begin('analysis-updated');
 
       // Preserve custom mapping UI state across chart component rebuilds
       const mappingUiRuntime = window.CodeXRMappingUiRuntime;
@@ -98,7 +168,7 @@
 
       if (dataEntities.length > 0) {
         const timestamp = Date.now();
-        console.log('🔄 Refreshing ' + dataEntities.length + ' data entities');
+        console.log(' Refreshing ' + dataEntities.length + ' data entities');
         
         // Update each data entity
         dataEntities.forEach(dataEntity => {
@@ -125,7 +195,7 @@
             // Trigger data refresh event after a short delay
             setTimeout(() => {
               dataEntity.emit('data-loaded', {});
-              console.log('📊 Data entity refreshed');
+              console.log(' Data entity refreshed');
             }, 100);
           }
         });
@@ -133,33 +203,46 @@
         // Let Babia rebuild from refreshed data/tree sources and only renormalize after the source pipeline settles.
         setTimeout(() => {
           restoreXrUiState(mappingUiRuntime, mappingUiState, chartDebugRuntime, chartDebugState);
-          renormalizeChartPedestals('analysis-updated', mappingUiRuntime);
+          renormalizeChartContainment('analysis-updated', mappingUiRuntime);
         }, 260);
 
         if (containsBoatsChart) {
           setTimeout(() => {
             restoreXrUiState(mappingUiRuntime, mappingUiState, chartDebugRuntime, chartDebugState);
-            renormalizeChartPedestals('analysis-updated-boats-settled', mappingUiRuntime);
+            renormalizeChartContainment('analysis-updated-boats-settled', mappingUiRuntime);
+            void completeNormalRefresh(
+              refreshGeneration,
+              'analysis-updated-boats-settled',
+              chartEntities
+            );
           }, 900);
+        } else {
+          setTimeout(() => {
+            void completeNormalRefresh(refreshGeneration, 'analysis-updated', chartEntities);
+          }, 300);
         }
       } else {
-        console.warn('⚠️ No data entities found for refresh');
+        console.warn(' No data entities found for refresh');
+      }
+      if (dataEntities.length === 0) {
+        void completeNormalRefresh(refreshGeneration, 'analysis-updated-no-data', chartEntities);
       }
     });
   
 
     // Handle dataRefresh events
     eventSource.addEventListener('dataRefresh', function(event) {
-      console.log('🔄 Received dataRefresh event:', event);
-      console.log('📊 Reloading data.json for XR chart refresh...');
+      console.log(' Received dataRefresh event:', event);
+      console.log(' Reloading data.json for XR chart refresh...');
       
       // Simple approach: just reload the data entities with cache busting
       // A-Frame will automatically re-render charts with fresh data
       const dataEntities = document.querySelectorAll('[babia-queryjson]');
+      const refreshGeneration = getNormalRefreshRuntime().begin('dataRefresh');
       
       if (dataEntities.length > 0) {
         const timestamp = Date.now();
-        console.log('🔄 Refreshing ' + dataEntities.length + ' data entities with cache busting');
+        console.log(' Refreshing ' + dataEntities.length + ' data entities with cache busting');
         
         dataEntities.forEach(dataEntity => {
           const queryjson = dataEntity.getAttribute('babia-queryjson');
@@ -181,7 +264,7 @@
               dataEntity.setAttribute('babia-queryjson', newAttr);
             }
             
-            console.log('📊 Data entity refreshed with cache busting');
+            console.log(' Data entity refreshed with cache busting');
           }
         });
 
@@ -189,18 +272,30 @@
         const containsBoatsChart = hasBoatsChart(chartEntities);
 
         setTimeout(() => {
-          renormalizeChartPedestals('dataRefresh', window.CodeXRMappingUiRuntime);
+          renormalizeChartContainment('dataRefresh', window.CodeXRMappingUiRuntime);
         }, 240);
 
         if (containsBoatsChart) {
           setTimeout(() => {
-            renormalizeChartPedestals('dataRefresh-boats-settled', window.CodeXRMappingUiRuntime);
+            renormalizeChartContainment('dataRefresh-boats-settled', window.CodeXRMappingUiRuntime);
+            void completeNormalRefresh(
+              refreshGeneration,
+              'dataRefresh-boats-settled',
+              chartEntities
+            );
           }, 900);
+        } else {
+          setTimeout(() => {
+            void completeNormalRefresh(refreshGeneration, 'dataRefresh', chartEntities);
+          }, 300);
         }
         
-        console.log('✅ XR data refresh completed - A-Frame will handle chart updates');
+        console.log(' XR data refresh completed - A-Frame will handle chart updates');
       } else {
-        console.warn('⚠️ No babia-queryjson data entities found for refresh');
+        console.warn(' No babia-queryjson data entities found for refresh');
+      }
+      if (dataEntities.length === 0) {
+        void completeNormalRefresh(refreshGeneration, 'dataRefresh-no-data', []);
       }
     });
   
@@ -211,12 +306,12 @@
       
       // Skip reload if in XR mode
       if (checkXRMode()) {
-        console.log('⛔ Blocking page reload in XR mode');
+        console.log(' Blocking page reload in XR mode');
         return false;
       }
       
       if (event.data === 'reload') {
-        console.log('💫 Live reload triggered, refreshing page...');
+        console.log(' Live reload triggered, refreshing page...');
         window.location.reload();
       }
     };

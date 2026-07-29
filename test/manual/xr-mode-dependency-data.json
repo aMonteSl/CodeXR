@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "sourceRevision": 1,
+  "targetType": "directory",
+  "targetRelativePath": "",
+  "nodes": [
+    {
+      "id": "file:src/analysis.ts", "kind": "file", "label": "analysis.ts",
+      "relativePath": "src/analysis.ts", "language": "TypeScript", "external": false,
+      "metrics": { "totalLines": 72, "degree": 3, "fanIn": 1, "fanOut": 2, "relationCount": 3, "cycleSize": 0 }
+    },
+    {
+      "id": "file:src/server.ts", "kind": "file", "label": "server.ts",
+      "relativePath": "src/server.ts", "language": "TypeScript", "external": false,
+      "metrics": { "totalLines": 54, "degree": 3, "fanIn": 2, "fanOut": 1, "relationCount": 3, "cycleSize": 0 }
+    },
+    {
+      "id": "file:src/history.js", "kind": "file", "label": "history.js",
+      "relativePath": "src/history.js", "language": "JavaScript", "external": false,
+      "metrics": { "totalLines": 38, "degree": 2, "fanIn": 1, "fanOut": 1, "relationCount": 2, "cycleSize": 0 }
+    },
+    {
+      "id": "external:three", "kind": "external", "label": "three",
+      "language": "JavaScript", "external": true,
+      "metrics": { "degree": 2, "fanIn": 2, "fanOut": 0, "relationCount": 2, "cycleSize": 0 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge:analysis-server", "source": "file:src/analysis.ts", "target": "file:src/server.ts",
+      "kind": "import", "confidence": "exact", "occurrences": 4
+    },
+    {
+      "id": "edge:server-history", "source": "file:src/server.ts", "target": "file:src/history.js",
+      "kind": "call", "confidence": "probable", "occurrences": 2
+    },
+    {
+      "id": "edge:analysis-three", "source": "file:src/analysis.ts", "target": "external:three",
+      "kind": "import", "confidence": "exact", "occurrences": 3
+    },
+    {
+      "id": "edge:history-three", "source": "file:src/history.js", "target": "external:three",
+      "kind": "require", "confidence": "exact", "occurrences": 1
+    }
+  ],
+  "warnings": [],
+  "capabilities": {},
+  "generatedAt": "2026-06-15T00:00:00.000Z"
+}

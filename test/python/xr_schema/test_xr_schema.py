@@ -111,6 +111,8 @@ class XRSchemaContractTests(unittest.TestCase):
             self.assertEqual(livepanel_payload[0]['maxNestingDepth'], 2)
             self.assertEqual(livepanel_payload[0]['parameters'], 2)
             self.assertIn('treePath', livepanel_payload[0])
+            self.assertIn('modifiedAtMs', livepanel_payload[0])
+            self.assertIn('modifiedAtIso', livepanel_payload[0])
         finally:
             Path(file_path).unlink(missing_ok=True)
 
@@ -124,6 +126,8 @@ class XRSchemaContractTests(unittest.TestCase):
             self.assertEqual(payload[0]['relativePath'], 'sample.py')
             self.assertIn('maxFunctionNestingDepth', payload[0])
             self.assertIn('averageFunctionParameters', payload[0])
+            self.assertIn('modifiedAtMs', payload[0])
+            self.assertIn('modifiedAtIso', payload[0])
 
 
 if __name__ == '__main__':

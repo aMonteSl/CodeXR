@@ -52,7 +52,6 @@ export interface AutoAnalysisDelayConfig {
 }
 
 export interface XRBabiaUiConfig {
-    enabled: boolean;
     visibleByDefault: boolean;
 }
 
@@ -106,7 +105,7 @@ export interface AnalysisConfiguration {
      * Babia UI configuration for XR analyses.
      */
     xrBabiaUi: XRBabiaUiConfig;
-    
+
     /**
      * TODO: Add more configuration settings here as they are implemented
      * Example future settings:
@@ -131,8 +130,8 @@ export const DEFAULT_ANALYSIS_CONFIGURATION: AnalysisConfiguration = {
         customMs: undefined,
         autoAnalysisEnabled: true // Default to enabled
     },
-    chartTypeFile: 'boats', // Default chart type changed to boats
-    chartTypeDirectory: 'boats', // Default chart type for directories changed to boats
+    chartTypeFile: 'boats',
+    chartTypeDirectory: 'boats',
     dimensionMappingFile: {
         area: 'parameters',
         height: 'lineCount',
@@ -152,7 +151,6 @@ export const DEFAULT_ANALYSIS_CONFIGURATION: AnalysisConfiguration = {
         filesSortDirection: 'ascending'
     },
     xrBabiaUi: {
-        enabled: true,
         visibleByDefault: true
     }
 };

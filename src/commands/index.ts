@@ -8,6 +8,7 @@ import { getPythonEnvCommandRegistrations } from './python_env/pythonEnvCommands
 import { getVisualizationSettingsCommandRegistrations } from './visualization_settings/visualizationSettingsCommands';
 import { getLearnMoreCommandRegistrations } from './learn_more/learnMoreCommands';
 import { getGeneralCommandRegistrations } from './common/generalCommands';
+import { getCollaborationCommandRegistrations } from './collaboration/collaborationCommands';
 import { ExtensionCommandRegistration, assertUniqueCommandIds } from './shared';
 import { CommandBuilder } from '../utils/commandBuilder';
 import { BabiaExamplesTreeDataProvider } from '../babia_examples/views/babiaExamplesTreeView';
@@ -15,6 +16,7 @@ import { DebugThemeProblem } from '../code_analysis/configuration/debugThemeProb
 import { CodeXRLogger } from '../core/logging/logger';
 interface RefreshableTreeProvider {
     refresh(): void;
+    refreshSection?(sectionName: string): void;
 }
 const logger = CodeXRLogger.getLogger('COMMAND_REGISTRATION');
 export function registerAllCommands(
@@ -46,6 +48,7 @@ export function registerAllCommands(
         ...getAnalysisCommandRegistrations(context, analysisRefreshCallback),
         ...getPythonEnvCommandRegistrations(context),
         ...getVisualizationSettingsCommandRegistrations(context),
+        ...getCollaborationCommandRegistrations(context, treeDataProvider),
         ...getLearnMoreCommandRegistrations(context),
         ...DebugThemeProblem.getCommandRegistrations(context),
         {
@@ -53,7 +56,7 @@ export function registerAllCommands(
             module: 'GENERAL_COMMANDS',
             description: 'Hello world',
             handler: () => {
-                vscode.window.showInformationMessage('Hello World from Code-XR!');
+                vscode.window.showInformationMessage('Hello World from CodeXR!');
             },
         },
     ];

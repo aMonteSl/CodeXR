@@ -10,6 +10,43 @@ import { UnifiedSessionRegistry } from '../../../../engine/core/sessionRegistry'
 import { ServerWatcherIntegration } from '../../../../services/serverWatcherIntegration';
 import { ActiveAnalysisItem, ActiveAnalysesDataService } from '../services/activeAnalysesDataService';
 import { CommandRegistration } from '../../../../commands/subsections/analysis_settings/analysis_file_mode';
+import { analysisRefreshCoordinator } from '../../../../refresh/analysisRefreshCoordinator';
+import { resolveAnalysisServerCapabilities } from '../../../../../servers/runtime/analysisServerCapabilities';
+import {
+    buildExportManifest,
+    configureOfflineExportHtml,
+    isXrSceneFolder,
+    refreshRuntimeCopies,
+    relativizeExportArtifacts,
+    writeExportReadme,
+} from '../../../../export/exportManifest';
+import { buildExportModeItems, interpretExportSelection } from '../../../../export/exportModeSelection';
+import {
+    exportGitRevisionData,
+    inspectGitRevisionExport,
+} from '../../../../export/gitRevisionExporter';
+import { GitExportOutcome } from '../../../../export/gitRevisionExportCore';
+import {
+    calculateGitExportWorkerPlan,
+    GitExportPerformanceProfile,
+    GitRevisionExportRequest,
+    GitRevisionScope,
+    validateGitRevisionScope,
+} from '../../../../export/gitExportOptions';
+import {
+    abortExportPackage,
+    beginExportPackageTransaction,
+    ExportPackageTransaction,
+    pruneExportPackage,
+    publishExportPackage,
+    validateExportPackage,
+} from '../../../../export/exportPackageTransaction';
+
+class ExportCancelledError extends Error {
+    public constructor() {
+        super('export-cancelled');
+    }
+}
 
 export class ActiveAnalysesCommands {
     private static instance: ActiveAnalysesCommands;
@@ -18,6 +55,7 @@ export class ActiveAnalysesCommands {
     private constructor(
         private sessionRegistry: UnifiedSessionRegistry,
         private serverWatcher: ServerWatcherIntegration,
+        private readonly extensionContext: vscode.ExtensionContext,
     ) {
         this.commands = [
             {
@@ -68,12 +106,17 @@ export class ActiveAnalysesCommands {
     public static getInstance(
         sessionRegistry?: UnifiedSessionRegistry,
         serverWatcher?: ServerWatcherIntegration,
+        extensionContext?: vscode.ExtensionContext,
     ): ActiveAnalysesCommands {
         if (!ActiveAnalysesCommands.instance) {
-            if (!sessionRegistry || !serverWatcher) {
-                throw new Error('SessionRegistry and ServerWatcher are required for first initialization');
+            if (!sessionRegistry || !serverWatcher || !extensionContext) {
+                throw new Error(
+                    'SessionRegistry, ServerWatcher, and ExtensionContext are required for first initialization',
+                );
             }
-            ActiveAnalysesCommands.instance = new ActiveAnalysesCommands(sessionRegistry, serverWatcher);
+            ActiveAnalysesCommands.instance = new ActiveAnalysesCommands(
+                sessionRegistry, serverWatcher, extensionContext,
+            );
         }
         return ActiveAnalysesCommands.instance;
     }
@@ -277,6 +320,127 @@ export class ActiveAnalysesCommands {
             return;
         }
 
+        // The modal comes first: what goes into the copy decides how long the
+        // export takes, so the user chooses before picking a destination.
+        const capabilities = resolveAnalysisServerCapabilities(session.analysisMode);
+        const selection = interpretExportSelection(await vscode.window.showQuickPick(
+            buildExportModeItems(capabilities),
+            {
+                canPickMany: true,
+                title: 'Export Analysis Folder: choose the analyses to include',
+                placeHolder: 'Normal is always included; the git analyses pre-compute the whole timeline',
+            },
+        ));
+        if (selection.cancelled) {
+            return;
+        }
+
+        let gitExportRequest: GitRevisionExportRequest | undefined;
+        if (selection.gitTimeline) {
+            try {
+                const preflight = await inspectGitRevisionExport(this.extensionContext, session);
+                if (preflight.commitCount < 1) {
+                    vscode.window.showErrorMessage(
+                        'Historical comparison and Project evolution need at least one Git commit to export.',
+                    );
+                    return;
+                }
+                const scopeItem = await vscode.window.showQuickPick([
+                    {
+                        label: `Entire Git history — ${preflight.commitCount.toLocaleString()} commits`,
+                        description: 'Every commit reachable from all branches and tags',
+                        scope: { kind: 'all' } as GitRevisionScope,
+                    },
+                    {
+                        label: 'Only the latest N commits…',
+                        description: 'Newest commits across all branches and tags; working copy is added separately',
+                        scope: { kind: 'latest', count: 1 } as GitRevisionScope,
+                    },
+                ], {
+                    title: 'Export Git timeline: choose history range',
+                    placeHolder: `${preflight.commitCount.toLocaleString()} commits are available`,
+                });
+                if (!scopeItem) {
+                    return;
+                }
+                let scope = scopeItem.scope;
+                if (scope.kind === 'latest') {
+                    const rawCount = await vscode.window.showInputBox({
+                        title: 'Export Git timeline: number of latest commits',
+                        prompt: `Enter a value from 1 to ${preflight.commitCount.toLocaleString()}.`
+                            + ' The working copy is included in addition to this number.',
+                        value: String(Math.min(100, preflight.commitCount)),
+                        validateInput: (value) => {
+                            const count = Number(value);
+                            return Number.isInteger(count)
+                                && count >= 1
+                                && count <= preflight.commitCount
+                                ? undefined
+                                : `Enter a whole number between 1 and ${preflight.commitCount}.`;
+                        },
+                    });
+                    if (rawCount === undefined) {
+                        return;
+                    }
+                    scope = validateGitRevisionScope(
+                        { kind: 'latest', count: Number(rawCount) },
+                        preflight.commitCount,
+                    );
+                }
+
+                const balancedPlan = calculateGitExportWorkerPlan('balanced');
+                const maximumPlan = calculateGitExportWorkerPlan('maximum');
+                const performanceItem = await vscode.window.showQuickPick([
+                    {
+                        label: `Balanced — ${balancedPlan.workerCount} workers`,
+                        description: 'Keeps CPU and memory available for VS Code',
+                        profile: 'balanced' as GitExportPerformanceProfile,
+                    },
+                    {
+                        label: `Maximum speed — ${maximumPlan.workerCount} workers`,
+                        description: 'Uses the highest safe local concurrency',
+                        profile: 'maximum' as GitExportPerformanceProfile,
+                    },
+                ], {
+                    title: 'Export Git timeline: choose performance',
+                    placeHolder: 'Workers are persistent and analyze distinct Git files in parallel',
+                });
+                if (!performanceItem) {
+                    return;
+                }
+                gitExportRequest = {
+                    scope,
+                    performanceProfile: performanceItem.profile,
+                };
+
+                const gitModeNames = [
+                    selection.historicalComparison ? 'Historical comparison' : '',
+                    selection.projectEvolution ? 'Project evolution' : '',
+                ].filter(Boolean).join(' and ');
+                const selectedCount = scope.kind === 'all'
+                    ? preflight.commitCount
+                    : scope.count;
+                const selectedPlan = performanceItem.profile === 'maximum'
+                    ? maximumPlan
+                    : balancedPlan;
+                const confirmation = await vscode.window.showWarningMessage(
+                    `${gitModeNames} will export ${selectedCount.toLocaleString()} Git commits`
+                    + ` plus the working copy using ${selectedPlan.workerCount} persistent workers. `
+                    + 'Unchanged Git files are analyzed once and shared across revisions.',
+                    { modal: true },
+                    'Continue Export',
+                );
+                if (confirmation !== 'Continue Export') {
+                    return;
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(
+                    `The Git timeline cannot be exported: ${error instanceof Error ? error.message : String(error)}`,
+                );
+                return;
+            }
+        }
+
         const selectedFolder = await vscode.window.showOpenDialog({
             canSelectFiles: false,
             canSelectFolders: true,
@@ -299,18 +463,151 @@ export class ActiveAnalysesCommands {
             return;
         }
 
+        const capturedViewState = analysisRefreshCoordinator.getViewState(session.id);
+        let transaction: ExportPackageTransaction | undefined;
         try {
-            await fs.promises.cp(sourcePath, destinationPath, {
-                recursive: true,
-                force: false,
-                errorOnExist: true,
-            });
+            if (
+                selection.dependencyGraph
+                && capabilities.dependencyGraph
+                && !this.hasDependencyDataset(sourcePath)
+            ) {
+                const dependencyFailure = await this.pregenerateDependencyDataset(
+                    session.id,
+                    sourcePath,
+                );
+                if (dependencyFailure) {
+                    throw new Error(dependencyFailure);
+                }
+            }
 
-            vscode.window.showInformationMessage(`Analysis folder exported to ${destinationPath}`);
+            transaction = await beginExportPackageTransaction(sourcePath, destinationPath);
+            const stagingPath = transaction.stagingPath;
+            await pruneExportPackage(stagingPath, selection);
+            await configureOfflineExportHtml(stagingPath);
+
+            // Everything below touches the DESTINATION copy only.
+            await relativizeExportArtifacts(stagingPath);
+            let analyzedRevisions = 0;
+            let partialGitSources = 0;
+            if (isXrSceneFolder(stagingPath)) {
+                await refreshRuntimeCopies(stagingPath, this.extensionContext.extensionPath);
+
+                // Git timeline pre-analysis: one shared pass serves both
+                // historical comparison and project evolution offline.
+                let gitOutcome: GitExportOutcome | undefined;
+                if (selection.gitTimeline) {
+                    gitOutcome = await vscode.window.withProgress(
+                        {
+                            location: vscode.ProgressLocation.Notification,
+                            title: 'CodeXR: analyzing the complete Git timeline for the export…',
+                            cancellable: true,
+                        },
+                        (progress, token) => exportGitRevisionData(
+                            this.extensionContext,
+                            session,
+                            stagingPath,
+                            gitExportRequest as GitRevisionExportRequest,
+                            { progress, token },
+                        ),
+                    );
+                    if (gitOutcome.cancelled) {
+                        throw new ExportCancelledError();
+                    }
+                    if (!gitOutcome.gitData) {
+                        throw new Error(
+                            gitOutcome.failureReason
+                            || 'The Git timeline did not produce enough usable revisions.',
+                        );
+                    }
+                    analyzedRevisions = gitOutcome.gitData.analyzedRevisionCount || 0;
+                    partialGitSources = gitOutcome.gitData.skippedRevisions?.length || 0;
+                }
+
+                const manifest = await buildExportManifest(stagingPath, {
+                    target: {
+                        name: session.targetName || path.basename(session.targetPath || '') || 'analysis',
+                        type: session.targetType || 'directory',
+                        analysisMode: session.analysisMode || 'XR',
+                    },
+                    serverCapabilities: capabilities,
+                    viewState: {
+                        mode: String(capturedViewState.mode || 'single'),
+                        controllerView: capturedViewState.controllerView,
+                    },
+                    gitData: gitOutcome?.gitData,
+                    gitDataFailureReason: gitOutcome?.failureReason,
+                    gitDataSelected: selection.gitTimeline,
+                    selectedModes: selection,
+                });
+                await writeExportReadme(stagingPath, manifest);
+                await validateExportPackage(stagingPath, manifest);
+            }
+
+            await publishExportPackage(transaction);
+            const revisionsNote = analyzedRevisions
+                ? ` ${analyzedRevisions} git revisions travel with it.`
+                : '';
+            const partialNote = partialGitSources
+                ? ` ${partialGitSources} revision source(s) were discarded because they had no usable data; details are listed in the manifest.`
+                : '';
+            const completionMessage = `Analysis folder exported to ${destinationPath}.${revisionsNote}${partialNote} `
+                + 'Serve it with any static HTTP server (e.g. "npx serve") to open it outside VS Code.';
+            if (partialGitSources) {
+                vscode.window.showWarningMessage(completionMessage);
+            } else {
+                vscode.window.showInformationMessage(completionMessage);
+            }
         } catch (error) {
-            vscode.window.showErrorMessage(
-                `Failed to export analysis folder: ${error instanceof Error ? error.message : String(error)}`,
+            await abortExportPackage(transaction);
+            if (error instanceof ExportCancelledError) {
+                vscode.window.showInformationMessage(
+                    'Analysis export cancelled. No partial folder was published.',
+                );
+            } else {
+                vscode.window.showErrorMessage(
+                    `Failed to export analysis folder: ${error instanceof Error ? error.message : String(error)}`,
+                );
+            }
+        }
+    }
+
+    private hasDependencyDataset(sourcePath: string): boolean {
+        const dependenciesDir = path.join(sourcePath, 'dependencies');
+        if (!fs.existsSync(dependenciesDir)) {
+            return false;
+        }
+        return fs.readdirSync(dependenciesDir)
+            .some((name) => /^dependency-graph-\d+\.json$/.test(name));
+    }
+
+    /**
+     * Run the same dependency analysis the in-scene "dependency graph" mode
+     * would trigger, and wait for it, so the export ships a usable dataset.
+     * Returns a reason string when the dataset could not be produced. A
+     * selected mode is a package invariant, so the transaction then aborts.
+     */
+    private async pregenerateDependencyDataset(
+        sessionId: string,
+        sourcePath: string,
+    ): Promise<string | undefined> {
+        try {
+            await vscode.window.withProgress(
+                {
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'CodeXR: preparing export (analyzing dependencies)…',
+                },
+                () => analysisRefreshCoordinator.forceRefreshModeAndWait(
+                    sessionId,
+                    'dependency-graph',
+                    600_000,
+                ),
             );
+            if (!this.hasDependencyDataset(sourcePath)) {
+                return 'The dependency analysis completed without producing an exportable dataset.';
+            }
+            return undefined;
+        } catch (error) {
+            return `The dependency analysis failed during export: ${error instanceof Error ? error.message : String(error)}`;
         }
     }
 

@@ -82,7 +82,7 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
                     vscode.TreeItemCollapsibleState.Expanded,
                     'section',
                     new vscode.ThemeIcon('server-process'),
-                    'Currently running servers',
+                    'Running servers and collaboration profile',
                     undefined,
                     'activeServersSection',
                 );
@@ -423,6 +423,9 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
         if (child.activeServerItemType) {
             (modularItem as any).activeServerItemType = child.activeServerItemType;
             (modularItem as any).activeServer = child.activeServer;
+            // Participant rows carry their peer, which context-menu commands
+            // receive instead of explicit arguments.
+            (modularItem as any).participant = child.participant;
         }
         if (child.babiaItemType) {
             (modularItem as any).babiaItemType = child.babiaItemType;
@@ -480,6 +483,7 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
                     element.description,
                     element.contextValue,
                     (element as any).activeServer,
+                    (element as any).participant,
                 );
             }
             case 'babiaExamples': {

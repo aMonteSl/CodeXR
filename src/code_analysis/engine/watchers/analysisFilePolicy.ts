@@ -1,5 +1,8 @@
 import * as path from 'path';
-import { isSupportedExtension } from '../../../utils/supportedLanguages';
+import {
+    getAllSupportedExtensions,
+    isSupportedExtension,
+} from '../../../utils/supportedLanguages';
 
 const DIRECTORY_IGNORES = new Set([
     '.git',
@@ -16,8 +19,13 @@ const DIRECTORY_IGNORES = new Set([
     '.vscode',
     '.idea',
     '__pycache__',
+    'site-packages',
+    '__pypackages__',
     '.pytest_cache',
     '.mypy_cache',
+    '.ruff_cache',
+    '.tox',
+    '.nox',
     'coverage',
     '.nyc_output',
     'venv',
@@ -67,6 +75,9 @@ const DIRECTORY_ANALYSIS_EXTENSIONS = new Set([
 ]);
 
 const HTML_EXTENSIONS = new Set(['.html', '.htm', '.xhtml']);
+const METRIC_ANALYSIS_EXTENSIONS = new Set(
+    getAllSupportedExtensions().filter((extension) => !HTML_EXTENSIONS.has(extension)),
+);
 
 export function shouldIgnoreDirectoryName(name: string): boolean {
     return DIRECTORY_IGNORES.has(name) || FILE_SKIP_PATTERNS.some((pattern) => pattern.test(name));
@@ -86,6 +97,20 @@ export function isDirectoryAnalysisFile(filePath: string): boolean {
     }
 
     return DIRECTORY_ANALYSIS_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+}
+
+/**
+ * Exact extension contract consumed by the Python metric analyzer. The
+ * historical materializer accepts a few legacy extensions as well, but the
+ * Python directory scanner intentionally ignores those. Export-time blob
+ * deduplication must follow the effective analyzer contract so it neither
+ * schedules work that normal XR would ignore nor changes exported datasets.
+ */
+export function isMetricAnalysisFile(filePath: string): boolean {
+    if (shouldIgnoreFileName(path.basename(filePath))) {
+        return false;
+    }
+    return METRIC_ANALYSIS_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
 
 export function isCodeAnalysisFile(filePath: string): boolean {

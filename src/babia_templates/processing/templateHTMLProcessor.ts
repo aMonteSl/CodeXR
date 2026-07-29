@@ -81,7 +81,7 @@ export class TemplateHTMLProcessor {
             console.log('TEMPLATE_HTML_PROCESSOR: Generated HTML length:', processedHtml.length);
             console.log('TEMPLATE_HTML_PROCESSOR: Generated JS length:', processedJs.length);
 
-            // 🔍 DEBUG: Verify what we're about to return
+            // DEBUG: Verify what we're about to return
             const returnResult = {
                 success: true,
                 indexHtml: processedHtml,
@@ -293,4 +293,3 @@ export class TemplateHTMLProcessor {
         return true;
     }
 }
-

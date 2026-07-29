@@ -1,0 +1,10 @@
+{
+  "output": "xrChartDebugRuntime.js",
+  "parts": [
+    "constantsAndChartLookup.js",
+    "raycastAndGizmo.js",
+    "rigFlightAndScale.js",
+    "debugModeAndPointer.js",
+    "initialize.js"
+  ]
+}

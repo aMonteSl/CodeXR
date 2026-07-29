@@ -1,0 +1,288 @@
+// == xrChartMappingUiRuntime.js | configAndLabels (assembled per manifest.json; see COMPONENTS.md) ==
+(function (root, factory) {
+  if (typeof module === 'object' && typeof module.exports === 'object') {
+    module.exports = factory(root);
+  } else {
+    root.CodeXRMappingUiRuntime = factory(root);
+  }
+})(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this, function (root) {
+  'use strict';
+
+  var CONFIG_KEY = '__CODEXR_XR_MAPPING_UI__';
+  var CONFIG_SCRIPT_ID = 'codexr-tooling-config-xr-mapping-ui';
+  var SHARED_ENTITY_KIND = 'mapping';
+  var COMPONENT_BY_CHART = {
+    bars: 'babia-bars',
+    barsmap: 'babia-barsmap',
+    cyls: 'babia-cyls',
+    cylsmap: 'babia-cylsmap',
+    donut: 'babia-doughnut',
+    pie: 'babia-pie',
+    bubbles: 'babia-bubbles',
+    boats: 'babia-boats'
+  };
+
+  // ── Controller contract ─────────────────────────────────────────────
+  // This runtime is the table's controller: one shared panel hosting one
+  // "panel view" per analysis surface. Feature runtimes contribute views via
+  // registerPanelView({ id, title, content, headerButton, ... }) — never by
+  // touching the panel directly — and must schedule that call through
+  // whenPanelReady() (fires immediately once the panel exists, queues
+  // otherwise), so load order and scene timing cannot strand a view.
+  // To add a new analysis surface: register its panel view, then map its
+  // controller view(s) here so mode transitions can address it.
+  //
+  // A view that asks for `headerButton: true` also gets a say in how that
+  // button reads: `buttonLabel` (a word, not a letter), `buttonWidth` (the
+  // 0.34 square is the default; widen it to fit the label) and `buttonColor`
+  // — a declared colour outranks the open/closed default, so the button can
+  // mean something. `setPanelViewButtonColor(viewId, color)` changes it while
+  // the scene runs, which is how the analysis selector wears the colour of the
+  // analysis you are in. Labels must stay ASCII: the SDF font ships no bullet,
+  // arrow or icon glyph.
+  var PANEL_READY_CALLBACKS = [];
+
+  var CONTROLLER_PANEL_BY_VIEW = {
+    'visualization-menu': 'visualization-mode',
+    'single.mapping': 'mapping',
+    'dependency.settings': 'dependency-graph',
+    'historical.selection': 'historical-selection',
+    'historical.mapping': 'mapping',
+    'project-evolution': 'project-evolution',
+    'project-evolution.selection': 'project-evolution',
+    'project-evolution.playback': 'project-evolution',
+    'project-evolution.mapping': 'mapping'
+  };
+
+  var CONTROLLER_VIEW_BY_PANEL = {
+    'visualization-mode': 'visualization-menu',
+    mapping: 'single.mapping',
+    'dependency-graph': 'dependency.settings',
+    'historical-selection': 'historical.selection',
+    'project-evolution': 'project-evolution'
+  };
+
+  var refs = {
+    panel: null,
+    panelContent: null,
+    panelTitle: null,
+    panelTitleBackdrop: null,
+    toggle: null,
+    rowsRoot: null,
+    chartRoot: null,
+    panelBackground: null,
+    panelBorder: null,
+    statusText: null
+  };
+
+  var state = {
+    initialized: false,
+    visible: true,
+    selectedByDimension: {},
+    lastKnownGoodMapping: {},
+    invalidOptionsByDimension: {},
+    adaptiveLoopActive: false,
+    activeCornerId: null,
+    lastCornerSwitchAt: 0,
+    lastConfigSnapshot: null,
+    pendingValidationTimers: [],
+    pendingMappingToken: 0,
+    pendingMapping: null,
+    statusMessage: '',
+    statusLevel: 'info',
+    statusClearTimer: null,
+    suppressSharedPublish: false,
+    chartEntityIdsOverride: null,
+    activeMappingContextId: 'normal-analysis',
+    mappingProfiles: {},
+    // Per-context companion sections shown under the mapping view (child
+    // versions of the Field Mapping panel, e.g. the historical comparison
+    // extension with its side info + change-comparison action).
+    mappingCompanions: {},
+    activePanelView: 'mapping',
+    mappingPanelHeight: 2.45,
+    panelViews: {},
+    panelViewObservers: {},
+    runtimeConfig: null,
+    activeChartId: null,
+    mode: 'single',
+    activeControllerView: 'single.mapping',
+    mappingControlsLocked: false,
+    // Mapping profile currently rendered (context + chart); guards the
+    // idempotent context switch.
+    appliedMappingProfileKey: null
+  };
+
+  var ADAPTIVE_DEFAULTS = {
+    cornerSwitchThreshold: 0.35,
+    cornerSwitchCooldownMs: 500,
+    panelLift: 0.04,
+    panelForwardOffset: 0.12
+  };
+
+  var PANEL_LAYOUT = {
+    left: -2.85,
+    right: 2.55,
+    labelWidth: 7.4,
+    buttonGap: 0.08,
+    rowGap: 0.28,
+    sectionGap: 0.32,
+    labelToButtonsGap: 0.3,
+    maxChartRows: 3,
+    chartRootHeightOffset: 0.34,
+    rowsRootHeightOffset: 1.72,
+    panelHeightPadding: 2.95
+  };
+
+  // Header controls (the view buttons and the +/- toggle). The panel renders
+  // at 0.2 world scale, so 0.34 is a ~7 cm square: enough for one glyph, which
+  // is why a button that needs a word asks for a wider plate.
+  var HEADER_BUTTON_HEIGHT = 0.34;
+  var HEADER_BUTTON_MIN_WIDTH = 0.34;
+  var HEADER_BUTTON_GAP = 0.08;
+  var HEADER_BUTTON_MAX_LABEL = 16;
+  // Text width relative to the plate, the same ratio the panel's option
+  // buttons use — at the inherited `width: 1` a label was ~5 mm tall.
+  var HEADER_BUTTON_TEXT_RATIO = 1.9;
+
+  function getPanelContentWidth() {
+    return PANEL_LAYOUT.right - PANEL_LAYOUT.left;
+  }
+
+  function getGridButtonWidth(cols) {
+    var safeCols = Math.max(1, Number(cols) || 1);
+    return (getPanelContentWidth() - PANEL_LAYOUT.buttonGap * (safeCols - 1)) / safeCols;
+  }
+
+  function getGridButtonX(colIndex, buttonWidth) {
+    return PANEL_LAYOUT.left + colIndex * (buttonWidth + PANEL_LAYOUT.buttonGap) + buttonWidth * 0.5;
+  }
+
+  function getDoc() {
+    return root.document;
+  }
+
+  function getConfig() {
+    if (state.runtimeConfig) {
+      return state.runtimeConfig;
+    }
+    var document = getDoc();
+    var configScript = document ? document.getElementById(CONFIG_SCRIPT_ID) : null;
+    if (configScript && typeof configScript.textContent === 'string') {
+      try {
+        state.runtimeConfig = JSON.parse(configScript.textContent);
+        state.activeChartId = state.runtimeConfig.chartId || null;
+        // Pristine scene chart, captured before selectChart ever mutates
+        // config.chartId: modes that are not project evolution restore the
+        // selector to this chart on entry.
+        state.sceneChartId = state.runtimeConfig.chartId || null;
+        return state.runtimeConfig;
+      } catch (error) {
+        console.warn('CODEXR_MAPPING_UI: invalid JSON config script', error);
+      }
+    }
+    // No config found (yet): report null instead of throwing — callers treat
+    // a missing config as "not ready" and the bootstrap keeps re-trying.
+    state.runtimeConfig = root[CONFIG_KEY] || null;
+    state.activeChartId = state.runtimeConfig ? (state.runtimeConfig.chartId || null) : null;
+    return state.runtimeConfig;
+  }
+
+  function createEntity(tagName, attributes) {
+    var entity = getDoc().createElement(tagName);
+    Object.keys(attributes || {}).forEach(function (key) {
+      entity.setAttribute(key, attributes[key]);
+    });
+    return entity;
+  }
+
+  function clearEntity(entity) {
+    while (entity && entity.firstChild) {
+      entity.removeChild(entity.firstChild);
+    }
+  }
+
+  function pickColumns(fieldCount) {
+    if (fieldCount <= 5) {
+      return 2;
+    }
+    if (fieldCount <= 10) {
+      return 3;
+    }
+    return 4;
+  }
+
+  function compactLabel(rawName) {
+    var map = {
+      Complexity: 'Cplx',
+      Number: 'No',
+      Function: 'Fn',
+      Average: 'Avg',
+      Cyclomatic: 'Cyclo',
+      Nesting: 'Nest',
+      Parameters: 'Params',
+      Parameter: 'Param',
+      Count: 'Cnt',
+      Maximum: 'Max',
+      Minimum: 'Min'
+    };
+    var normalized = String(rawName || '')
+      .replace(/_/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .trim();
+
+    var compacted = normalized
+      .split(/\s+/)
+      .map(function (word) {
+        return map[word] || word;
+      })
+      .join(' ');
+
+    if (compacted.length <= 18) {
+      return compacted;
+    }
+    return compacted.slice(0, 15) + '...';
+  }
+
+  function humanizeFieldName(rawName) {
+    return String(rawName || '')
+      .replace(/_/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .trim();
+  }
+
+  function getFriendlyAxisLabel(config, dimensionId) {
+    var dimension = getDimensionConfig(config, dimensionId);
+    if (dimension && dimension.label) {
+      return String(dimension.label);
+    }
+    return humanizeFieldName(dimensionId || 'this axis') || 'this axis';
+  }
+
+  function buildFriendlyInvalidMappingMessage(config, dimensionId, fieldName, reason, includeRestoreLine) {
+    var axisLabel = getFriendlyAxisLabel(config, dimensionId);
+    var fieldLabel = humanizeFieldName(fieldName);
+    var lines = [];
+
+    if (reason && /no chart data is available yet/i.test(reason)) {
+      lines.push('This chart is still loading data for ' + axisLabel + '.');
+      lines.push('CodeXR kept the last valid mapping until the visualization is ready.');
+      lines.push('Try again once the chart finishes loading.');
+      return lines.join('\n');
+    }
+
+    if (fieldLabel) {
+      lines.push('"' + fieldLabel + '" caused an invalid chart for ' + axisLabel + '.');
+    } else {
+      lines.push('That field caused an invalid chart for ' + axisLabel + '.');
+    }
+
+    if (includeRestoreLine === false) {
+      lines.push('CodeXR blocked this option because Babia failed the last time it was used.');
+    } else {
+      lines.push('CodeXR restored the last valid mapping to keep the visualization stable.');
+    }
+
+    lines.push('Try another field for this axis.');
+    return lines.join('\n');
+  }

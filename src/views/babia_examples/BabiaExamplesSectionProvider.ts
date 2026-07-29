@@ -44,20 +44,28 @@ export class BabiaExamplesSectionProvider extends BaseSectionProvider<BabiaExamp
 
         try {
             const examples = await this.exampleLauncher.getExamples();
-            
+
+            // The credits row is always last, and stays reachable even when the
+            // scan finds nothing or fails.
+            const libraryInfo = BabiaExampleItemFactory.createLibraryInfoItem();
+
             if (examples.length === 0) {
                 console.log('BABIA_EXAMPLES_MODULAR: No examples found');
-                return [BabiaExampleItemFactory.createNoExamplesItem()];
+                return [BabiaExampleItemFactory.createNoExamplesItem(), libraryInfo];
             }
 
             console.log(`BABIA_EXAMPLES_MODULAR: Found ${examples.length} examples`);
             const children = BabiaExampleItemFactory.createSortedExampleItems(examples);
+            children.push(libraryInfo);
             console.log(`BABIA_EXAMPLES_MODULAR: Returning ${children.length} children for Babia Examples section`);
             return children;
 
         } catch (error) {
             console.error('BABIA_EXAMPLES_MODULAR: Error loading Babia examples:', error);
-            return [BabiaExampleItemFactory.createErrorItem()];
+            return [
+                BabiaExampleItemFactory.createErrorItem(),
+                BabiaExampleItemFactory.createLibraryInfoItem(),
+            ];
         }
     }
 

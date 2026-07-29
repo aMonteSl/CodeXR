@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "compile",
+      "problemMatcher": [],
+      "label": "CodeXR: compile",
+      "detail": "Compile CodeXR before launching the Extension Host"
+    },
+    {
+      "type": "npm",
+      "script": "compile:dev-host",
+      "problemMatcher": [],
+      "label": "CodeXR: compile:dev-host",
+      "detail": "Compile CodeXR and prepare an isolated Extension Host copy"
+    }
+  ]
+}

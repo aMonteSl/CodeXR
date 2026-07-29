@@ -28,6 +28,15 @@ export class VisualizationSettingsCommands {
                 handler: async (settingKey: string) => {
                     await commandsInstance.interactionHandler.handleSettingConfiguration(settingKey as never);
                 },
+            },
+            {
+                id: 'codeXR.visualizationSettings.resetAll',
+                module: 'VISUALIZATION-SETTINGS',
+                description: 'Reset visualization settings to their default values',
+                errorMessage: 'Failed to reset visualization settings',
+                handler: async () => {
+                    await commandsInstance.interactionHandler.handleResetToDefaults();
+                },
             }
         ];
     }

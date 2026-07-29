@@ -6,7 +6,6 @@ Utilidad para enviar mensajes de progreso desde scripts Python a executePython.t
 
 import sys
 import json
-from typing import Optional
 
 class ProgressLogger:
     """

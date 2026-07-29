@@ -14,6 +14,7 @@ interface ManagedWatcher {
     stopWatching(): void | Promise<void>;
     getWatchedFilesCount?(): number;
     updateDebounceConfiguration?(): Promise<void>;
+    reconcileNow?(): Promise<boolean>;
 }
 
 export class SessionWatcherManager {
@@ -106,6 +107,14 @@ export class SessionWatcherManager {
     static async refreshActiveWatcherConfigurations(context: vscode.ExtensionContext): Promise<number> {
         const manager = new SessionWatcherManager(context);
         return manager.updateAllWatcherConfigurations();
+    }
+
+    static async reconcileSession(sessionId: string): Promise<boolean> {
+        const watcher = SessionWatcherManager.activeWatchers.get(sessionId);
+        if (!watcher?.reconcileNow) {
+            return false;
+        }
+        return watcher.reconcileNow();
     }
 
     getActiveWatchersInfo(): { sessionId: string; count: number }[] {

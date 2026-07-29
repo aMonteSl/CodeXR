@@ -67,37 +67,37 @@ export class AutoAnalysisDelayCommands {
         try {
             const predefinedItems = [
                 {
-                    label: '⚡ Real Time (0s)',
+                    label: 'Real Time (0s)',
                     description: 'Instant analysis as you type',
                     detail: 'No delay - immediate response',
                     value: 'RealTime' as const
                 },
                 {
-                    label: '🕐 1 Second',
+                    label: '1 Second',
                     description: 'Short delay for quick feedback',
                     detail: '1000ms delay',
                     value: '1s' as const
                 },
                 {
-                    label: '🕒 3 Seconds',
+                    label: '3 Seconds',
                     description: 'Balanced delay for most users',
                     detail: '3000ms delay',
                     value: '3s' as const
                 },
                 {
-                    label: '🕔 5 Seconds',
+                    label: '5 Seconds',
                     description: 'Longer delay for complex analysis',
                     detail: '5000ms delay',
                     value: '5s' as const
                 },
                 {
-                    label: '🕙 10 Seconds',
+                    label: '10 Seconds',
                     description: 'Maximum predefined delay',
                     detail: '10000ms delay',
                     value: '10s' as const
                 },
                 {
-                    label: '⚙️ Custom Value...',
+                    label: 'Custom Value...',
                     description: 'Set your own delay (0-20000ms)',
                     detail: 'Enter custom milliseconds',
                     value: 'Custom' as const

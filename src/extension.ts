@@ -17,6 +17,8 @@ import { handleError, ErrorDomain, ErrorSeverity } from './utils/errorHandler';
 import { initializeExtensionContext } from './core/extensionContext';
 import { CodeXRLogger } from './core/logging/logger';
 import { StartupCoordinator } from './core/startup/startupCoordinator';
+import { CollaborationProfileManager } from './collaboration';
+import { RemoteAccessManager } from './remote_access';
 
 const startupLogger = CodeXRLogger.getLogger('STARTUP');
 
@@ -34,6 +36,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
     try {
         AnalysisConfigurationStorage.initialize(context);
+        CollaborationProfileManager.initialize(context);
+        RemoteAccessManager.initialize(context);
 
         const settingsManager = ServerSettingsManager.getInstance(context);
         getActiveServerRegistry();
@@ -106,6 +110,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export async function deactivate() {
     startupLogger.info('Deactivating CodeXR.');
+
+    try {
+        await RemoteAccessManager.getInstance()?.stopAll();
+    } catch (error) {
+        handleError(ErrorDomain.ActiveServers, 'Remote access cleanup', error, ErrorSeverity.Warn);
+    }
 
     try {
         const registry = getActiveServerRegistry();

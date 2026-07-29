@@ -42,6 +42,34 @@ function waitForMessage(socket, predicate) {
     });
 }
 
+async function joinRoom(socket, roomId) {
+    const joinedPromise = waitForMessage(socket, (payload) => payload.type === 'room-joined');
+    const snapshotPromise = waitForMessage(socket, (payload) => payload.type === 'room-snapshot');
+    socket.send(JSON.stringify({
+        type: 'room-join',
+        roomId,
+    }));
+    const joined = await joinedPromise;
+    const snapshot = await snapshotPromise;
+    return { joined, snapshot };
+}
+
+async function createCollaborationServer() {
+    const { CollaborationRoomServer } = loadCollaborationRoomServer();
+    const server = http.createServer((_req, res) => {
+        res.writeHead(200);
+        res.end('ok');
+    });
+    const collaboration = new CollaborationRoomServer(server);
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address();
+    return {
+        server,
+        collaboration,
+        url: `ws://127.0.0.1:${port}/codexr-room`,
+    };
+}
+
 test('collaboration room server isolates rooms, snapshots shared state, and releases locks on disconnect', async () => {
     const { CollaborationRoomServer } = loadCollaborationRoomServer();
     const server = http.createServer((_req, res) => {
@@ -197,6 +225,327 @@ test('collaboration room server assigns shared Star Wars display names and compo
         assert.equal(displayNames.some((name) => typeof name === 'string' && name.includes(' ')), true);
     } finally {
         sockets.forEach((socket) => socket.close());
+        collaboration.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('collaboration room server uses authoritative sessions and scopes profile updates', async () => {
+    const { CollaborationRoomServer } = loadCollaborationRoomServer();
+    const server = http.createServer((_req, res) => {
+        res.writeHead(200);
+        res.end('ok');
+    });
+    const profiles = new Map([
+        ['host-session', { identityMode: 'custom', customName: 'Ayla Nunez', avatarId: 'avatar-2' }],
+        ['guest-session', { identityMode: 'custom', customName: 'Ayla Nunez', avatarId: 'avatar-3' }],
+    ]);
+    const collaboration = new CollaborationRoomServer(server, '/codexr-room', {
+        resolveSession(request) {
+            const sessionId = request.headers['x-test-session'];
+            const profile = profiles.get(sessionId);
+            return profile ? {
+                sessionId,
+                installationId: `${sessionId}-installation`,
+                profile: { ...profile },
+                clientKind: 'codexr',
+                remote: false,
+                expiresAt: Date.now() + 60_000,
+            } : null;
+        },
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address();
+    const url = `ws://127.0.0.1:${port}/codexr-room`;
+    const host = new WebSocket(url, { headers: { 'x-test-session': 'host-session' } });
+    const guest = new WebSocket(url, { headers: { 'x-test-session': 'guest-session' } });
+    const direct = new WebSocket(url);
+
+    try {
+        await Promise.all([waitForOpen(host), waitForOpen(guest), waitForOpen(direct)]);
+        const hostJoin = await joinRoom(host, 'codexr-session:identity');
+        const guestJoin = await joinRoom(guest, 'codexr-session:identity');
+        const directJoin = await joinRoom(direct, 'codexr-session:identity');
+        assert.equal(hostJoin.joined.displayName, 'Ayla Nunez');
+        assert.equal(guestJoin.joined.displayName, 'Ayla Nunez 2');
+        assert.equal(directJoin.joined.payload.participant.identityMode, 'anonymous');
+        const summaries = collaboration.getConnectedParticipants('codexr-session:identity');
+        assert.deepEqual(
+            summaries.map((participant) => [participant.clientKind, participant.connectionScope]),
+            [
+                ['codexr', 'local'],
+                ['codexr', 'local'],
+                ['browser', 'local'],
+            ],
+        );
+
+        const guestIdentity = waitForMessage(host, (payload) => (
+            payload.type === 'participant-updated'
+            && payload.payload.peerId === guestJoin.joined.peerId
+        ));
+        collaboration.updateSessionProfile('guest-session', {
+            identityMode: 'custom',
+            customName: 'Mara Jade',
+            avatarId: 'avatar-4',
+        });
+        const updated = await guestIdentity;
+        assert.equal(updated.payload.displayName, 'Mara Jade');
+        assert.equal(updated.payload.avatarId, 'avatar-4');
+        assert.equal(hostJoin.joined.displayName, 'Ayla Nunez');
+        assert.equal(
+            collaboration.getConnectedParticipants('codexr-session:identity')[1].displayName,
+            'Mara Jade',
+        );
+    } finally {
+        host.close();
+        guest.close();
+        direct.close();
+        collaboration.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('collaboration room server hands every participant a distinct avatar colour', async () => {
+    const { server, collaboration, url } = await createCollaborationServer();
+    const first = new WebSocket(url);
+    const second = new WebSocket(url);
+    const third = new WebSocket(url);
+
+    try {
+        await Promise.all([waitForOpen(first), waitForOpen(second), waitForOpen(third)]);
+        const firstJoin = await joinRoom(first, 'codexr-session:colours');
+        const secondJoin = await joinRoom(second, 'codexr-session:colours');
+        const thirdJoin = await joinRoom(third, 'codexr-session:colours');
+
+        // Nobody picked a colour, so nobody should share one.
+        const assigned = [firstJoin, secondJoin, thirdJoin]
+            .map((join) => join.joined.payload.participant.avatarId);
+        assert.equal(new Set(assigned).size, 3, `expected distinct colours, got ${assigned.join(', ')}`);
+        assigned.forEach((avatarId) => assert.match(avatarId, /^avatar-[1-6]$/));
+
+        // The room resolves 'auto' rather than leaking the sentinel outwards.
+        const summaries = collaboration.getConnectedParticipants('codexr-session:colours');
+        assert.equal(summaries.length, 3);
+        summaries.forEach((participant) => assert.notEqual(participant.avatarId, 'auto'));
+        assert.equal(new Set(summaries.map((p) => p.avatarId)).size, 3);
+    } finally {
+        first.close();
+        second.close();
+        third.close();
+        collaboration.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('collaboration room server restricts administration and promotes the oldest guest', async () => {
+    const { server, collaboration, url } = await createCollaborationServer();
+    const host = new WebSocket(url);
+    const oldestGuest = new WebSocket(url);
+    const newestGuest = new WebSocket(url);
+
+    try {
+        await Promise.all([waitForOpen(host), waitForOpen(oldestGuest), waitForOpen(newestGuest)]);
+        const hostJoin = await joinRoom(host, 'codexr-session:roles');
+        const oldestJoin = await joinRoom(oldestGuest, 'codexr-session:roles');
+        const newestJoin = await joinRoom(newestGuest, 'codexr-session:roles');
+
+        const forbiddenTransfer = waitForMessage(oldestGuest, (payload) => (
+            payload.type === 'error' && payload.payload.code === 'forbidden'
+        ));
+        oldestGuest.send(JSON.stringify({
+            type: 'host-transfer',
+            payload: { peerId: newestJoin.joined.peerId },
+        }));
+        await forbiddenTransfer;
+
+        const promotedByTransfer = waitForMessage(newestGuest, (payload) => (
+            payload.type === 'role-updated'
+            && payload.payload.peerId === newestJoin.joined.peerId
+            && payload.payload.role === 'host'
+        ));
+        host.send(JSON.stringify({
+            type: 'host-transfer',
+            payload: { peerId: newestJoin.joined.peerId },
+        }));
+        await promotedByTransfer;
+
+        const forbiddenKick = waitForMessage(host, (payload) => (
+            payload.type === 'error' && payload.payload.code === 'forbidden'
+        ));
+        host.send(JSON.stringify({
+            type: 'participant-kick',
+            payload: { peerId: oldestJoin.joined.peerId },
+        }));
+        await forbiddenKick;
+
+        const kicked = waitForMessage(oldestGuest, (payload) => payload.type === 'participant-kick');
+        newestGuest.send(JSON.stringify({
+            type: 'participant-kick',
+            payload: { peerId: oldestJoin.joined.peerId },
+        }));
+        assert.equal((await kicked).payload.peerId, oldestJoin.joined.peerId);
+
+        const replacementHost = waitForMessage(host, (payload) => (
+            payload.type === 'role-updated'
+            && payload.payload.peerId === hostJoin.joined.peerId
+            && payload.payload.role === 'host'
+        ));
+        newestGuest.close();
+        await replacementHost;
+    } finally {
+        host.close();
+        oldestGuest.close();
+        newestGuest.close();
+        collaboration.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('collaboration room server keeps one presenter and lets the host stop another presenter', async () => {
+    const { server, collaboration, url } = await createCollaborationServer();
+    const host = new WebSocket(url);
+    const guest = new WebSocket(url);
+
+    try {
+        await Promise.all([waitForOpen(host), waitForOpen(guest)]);
+        const hostJoin = await joinRoom(host, 'codexr-session:presenter');
+        const guestJoin = await joinRoom(guest, 'codexr-session:presenter');
+
+        const hostStarted = waitForMessage(guest, (payload) => (
+            payload.type === 'presenter-started' && payload.payload.peerId === hostJoin.joined.peerId
+        ));
+        host.send(JSON.stringify({ type: 'presenter-started' }));
+        await hostStarted;
+
+        const hostStopped = waitForMessage(host, (payload) => (
+            payload.type === 'presenter-stopped' && payload.payload.peerId === hostJoin.joined.peerId
+        ));
+        const guestStarted = waitForMessage(host, (payload) => (
+            payload.type === 'presenter-started' && payload.payload.peerId === guestJoin.joined.peerId
+        ));
+        guest.send(JSON.stringify({ type: 'presenter-started' }));
+        await Promise.all([hostStopped, guestStarted]);
+
+        const hostRestarted = waitForMessage(guest, (payload) => (
+            payload.type === 'presenter-started' && payload.payload.peerId === hostJoin.joined.peerId
+        ));
+        host.send(JSON.stringify({ type: 'presenter-started' }));
+        await hostRestarted;
+
+        const forbiddenStop = waitForMessage(guest, (payload) => (
+            payload.type === 'error' && payload.payload.code === 'forbidden'
+        ));
+        guest.send(JSON.stringify({
+            type: 'presenter-stopped',
+            payload: { peerId: hostJoin.joined.peerId },
+        }));
+        await forbiddenStop;
+
+        const guestRestarted = waitForMessage(host, (payload) => (
+            payload.type === 'presenter-started' && payload.payload.peerId === guestJoin.joined.peerId
+        ));
+        guest.send(JSON.stringify({ type: 'presenter-started' }));
+        await guestRestarted;
+
+        const hostForcedStop = waitForMessage(guest, (payload) => (
+            payload.type === 'presenter-stopped' && payload.payload.peerId === guestJoin.joined.peerId
+        ));
+        host.send(JSON.stringify({
+            type: 'presenter-stopped',
+            payload: { peerId: guestJoin.joined.peerId },
+        }));
+        await hostForcedStop;
+    } finally {
+        host.close();
+        guest.close();
+        collaboration.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('disposing the room server announces session-ended to every peer before closing their sockets', async () => {
+    const { server, collaboration, url } = await createCollaborationServer();
+    const host = new WebSocket(url);
+    const guest = new WebSocket(url);
+
+    try {
+        await Promise.all([waitForOpen(host), waitForOpen(guest)]);
+        await joinRoom(host, 'codexr-session:alpha');
+        await joinRoom(guest, 'codexr-session:alpha');
+
+        const hostEnded = waitForMessage(host, (payload) => payload.type === 'session-ended');
+        const guestEnded = waitForMessage(guest, (payload) => payload.type === 'session-ended');
+        const guestClosed = new Promise((resolve) => guest.once('close', (code) => resolve(code)));
+
+        collaboration.dispose();
+
+        const [hostMessage, guestMessage] = await Promise.all([hostEnded, guestEnded]);
+        assert.equal(hostMessage.payload.reason, 'host-closed');
+        assert.equal(guestMessage.payload.reason, 'host-closed');
+        assert.equal(hostMessage.roomId, 'codexr-session:alpha');
+        // The deliberate-shutdown close code, distinct from the kick (4001).
+        assert.equal(await guestClosed, 4002);
+    } finally {
+        for (const socket of [host, guest]) {
+            try {
+                socket.close();
+            } catch {
+                // Already closed by the dispose under test.
+            }
+        }
+        collaboration.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('the extension can remove a participant: kick message, 4001 close, list update and presence-left', async () => {
+    const { server, collaboration, url } = await createCollaborationServer();
+    const host = new WebSocket(url);
+    const guest = new WebSocket(url);
+
+    try {
+        await Promise.all([waitForOpen(host), waitForOpen(guest)]);
+        const hostJoin = await joinRoom(host, 'codexr-session:alpha');
+        const guestJoin = await joinRoom(guest, 'codexr-session:alpha');
+        const hostPeerId = hostJoin.joined.peerId;
+        const guestPeerId = guestJoin.joined.peerId;
+
+        assert.equal(collaboration.getConnectedParticipants('codexr-session:alpha').length, 2);
+
+        const guestKicked = waitForMessage(guest, (payload) => payload.type === 'participant-kick');
+        const guestClosed = new Promise((resolve) => guest.once('close', (code) => resolve(code)));
+        const hostSawLeave = waitForMessage(
+            host,
+            (payload) => payload.type === 'presence-left' && payload.payload?.peerId === guestPeerId,
+        );
+
+        const result = collaboration.removeParticipant('codexr-session:alpha', guestPeerId);
+        assert.equal(result.removed, true);
+        // A local guest carries no authenticated session to revoke.
+        assert.equal(result.sessionId, null);
+        assert.equal(result.remote, false);
+
+        const kick = await guestKicked;
+        assert.equal(kick.payload.peerId, guestPeerId);
+        // The removal close code stays distinct from the session-ended one (4002).
+        assert.equal(await guestClosed, 4001);
+        await hostSawLeave;
+
+        const remaining = collaboration.getConnectedParticipants('codexr-session:alpha');
+        assert.deepEqual(remaining.map((participant) => participant.peerId), [hostPeerId]);
+
+        // Removing somebody who is not there changes nothing.
+        const missing = collaboration.removeParticipant('codexr-session:alpha', 'peer-does-not-exist');
+        assert.deepEqual(missing, { removed: false, sessionId: null, remote: false });
+        assert.equal(collaboration.getConnectedParticipants('codexr-session:alpha').length, 1);
+    } finally {
+        for (const socket of [host, guest]) {
+            try {
+                socket.close();
+            } catch {
+                // Already closed by the removal under test.
+            }
+        }
         collaboration.dispose();
         await new Promise((resolve) => server.close(resolve));
     }

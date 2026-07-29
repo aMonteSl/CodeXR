@@ -1,0 +1,3 @@
+import shared;
+
+class JavaSample {}

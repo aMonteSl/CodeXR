@@ -1,0 +1,287 @@
+/**
+ * Shared LivePanel chart components — styles and color tokens.
+ *
+ * Every chart reads its colors from the CSS custom properties defined here, so
+ * the light/dark swap is pure CSS (the theme toggle just flips body[data-theme]
+ * and every rendered chart follows without a re-render).
+ *
+ * Color roles follow the CodeXR data-viz rules:
+ *  - categorical slots (series-1..8) carry identity, assigned in fixed order;
+ *  - the sequential hue carries magnitude (single-series bars);
+ *  - status colors carry severity (complexity bands) and are never reused as series;
+ *  - diff colors follow the git convention (added/removed/modified/unchanged).
+ */
+
+body {
+  --codexr-viz-series-1: #2a78d6;
+  --codexr-viz-series-2: #1baf7a;
+  --codexr-viz-series-3: #eda100;
+  --codexr-viz-series-4: #008300;
+  --codexr-viz-series-5: #4a3aa7;
+  --codexr-viz-series-6: #e34948;
+  --codexr-viz-series-7: #e87ba4;
+  --codexr-viz-series-8: #eb6834;
+  --codexr-viz-sequential: #2a78d6;
+  --codexr-viz-status-good: #0ca30c;
+  --codexr-viz-status-warning: #fab219;
+  --codexr-viz-status-serious: #ec835a;
+  --codexr-viz-status-critical: #d03b3b;
+  --codexr-viz-diff-added: #008300;
+  --codexr-viz-diff-removed: #d03b3b;
+  --codexr-viz-diff-modified: #eda100;
+  --codexr-viz-diff-unchanged: #898781;
+  --codexr-viz-other: #898781;
+  --codexr-viz-ink: #0b0b0b;
+  --codexr-viz-ink-2: #52514e;
+  --codexr-viz-muted: #898781;
+  --codexr-viz-grid: #e1e0d9;
+  --codexr-viz-baseline: #c3c2b7;
+  --codexr-viz-track: rgba(11, 11, 11, 0.06);
+  --codexr-viz-surface: #fcfcfb;
+  --codexr-viz-tooltip-bg: #1f2937;
+  --codexr-viz-tooltip-ink: #f9fafb;
+}
+
+body[data-theme='dark'] {
+  --codexr-viz-series-1: #3987e5;
+  --codexr-viz-series-2: #199e70;
+  --codexr-viz-series-3: #c98500;
+  --codexr-viz-series-4: #008300;
+  --codexr-viz-series-5: #9085e9;
+  --codexr-viz-series-6: #e66767;
+  --codexr-viz-series-7: #d55181;
+  --codexr-viz-series-8: #d95926;
+  --codexr-viz-sequential: #3987e5;
+  --codexr-viz-ink: #ffffff;
+  --codexr-viz-ink-2: #c3c2b7;
+  --codexr-viz-muted: #898781;
+  --codexr-viz-grid: #2c2c2a;
+  --codexr-viz-baseline: #383835;
+  --codexr-viz-track: rgba(255, 255, 255, 0.08);
+  --codexr-viz-surface: #1a1a19;
+  --codexr-viz-tooltip-bg: #f9fafb;
+  --codexr-viz-tooltip-ink: #111827;
+}
+
+/* Slot classes: a mark carries identity through its class, never inline hex. */
+.codexr-series-1 { --codexr-slot: var(--codexr-viz-series-1); }
+.codexr-series-2 { --codexr-slot: var(--codexr-viz-series-2); }
+.codexr-series-3 { --codexr-slot: var(--codexr-viz-series-3); }
+.codexr-series-4 { --codexr-slot: var(--codexr-viz-series-4); }
+.codexr-series-5 { --codexr-slot: var(--codexr-viz-series-5); }
+.codexr-series-6 { --codexr-slot: var(--codexr-viz-series-6); }
+.codexr-series-7 { --codexr-slot: var(--codexr-viz-series-7); }
+.codexr-series-8 { --codexr-slot: var(--codexr-viz-series-8); }
+.codexr-sequential { --codexr-slot: var(--codexr-viz-sequential); }
+.codexr-status-good { --codexr-slot: var(--codexr-viz-status-good); }
+.codexr-status-warning { --codexr-slot: var(--codexr-viz-status-warning); }
+.codexr-status-serious { --codexr-slot: var(--codexr-viz-status-serious); }
+.codexr-status-critical { --codexr-slot: var(--codexr-viz-status-critical); }
+.codexr-diff-added { --codexr-slot: var(--codexr-viz-diff-added); }
+.codexr-diff-removed { --codexr-slot: var(--codexr-viz-diff-removed); }
+.codexr-diff-modified { --codexr-slot: var(--codexr-viz-diff-modified); }
+.codexr-diff-unchanged { --codexr-slot: var(--codexr-viz-diff-unchanged); }
+.codexr-other { --codexr-slot: var(--codexr-viz-other); }
+
+/* ── Donut chart ─────────────────────────────────────────────────── */
+
+.codexr-donut {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.codexr-donut-svg {
+  flex: 0 0 auto;
+}
+
+.codexr-donut-segment {
+  stroke: var(--codexr-slot);
+  fill: none;
+  transition: stroke-width 0.15s ease;
+}
+
+.codexr-donut-segment:hover,
+.codexr-donut-segment.codexr-hover {
+  stroke-width: 34;
+}
+
+.codexr-donut-center-value {
+  fill: var(--codexr-viz-ink);
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.codexr-donut-center-label {
+  fill: var(--codexr-viz-muted);
+  font-size: 12px;
+}
+
+.codexr-chart-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.codexr-chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--codexr-viz-ink-2);
+  cursor: default;
+}
+
+.codexr-chart-legend li.codexr-hover .codexr-legend-label {
+  color: var(--codexr-viz-ink);
+  font-weight: 600;
+}
+
+.codexr-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+  background: var(--codexr-slot);
+}
+
+.codexr-legend-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codexr-legend-value {
+  color: var(--codexr-viz-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.codexr-legend-share {
+  color: var(--codexr-viz-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+  text-align: right;
+}
+
+/* ── Horizontal bar chart (single series + paired) ───────────────── */
+
+.codexr-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.codexr-bar-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 220px) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.codexr-bar-row:hover {
+  background: var(--codexr-viz-track);
+}
+
+.codexr-bar-row.codexr-clickable {
+  cursor: pointer;
+}
+
+.codexr-bar-label {
+  font-size: 0.88rem;
+  color: var(--codexr-viz-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.codexr-bar-track {
+  position: relative;
+  height: 16px;
+  background: var(--codexr-viz-track);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.codexr-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 0 4px 4px 0;
+  background: var(--codexr-slot);
+  min-width: 2px;
+  transition: width 0.25s ease;
+}
+
+.codexr-bar-value {
+  font-size: 0.85rem;
+  color: var(--codexr-viz-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: right;
+}
+
+.codexr-paired-legend {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  color: var(--codexr-viz-ink-2);
+}
+
+.codexr-paired-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.codexr-paired-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.codexr-paired-pair .codexr-bar-track {
+  height: 12px;
+}
+
+/* ── Shared chart chrome ─────────────────────────────────────────── */
+
+.codexr-chart-empty {
+  color: var(--codexr-viz-muted);
+  font-size: 0.9rem;
+  padding: 12px 0;
+}
+
+.codexr-chart-tooltip {
+  position: fixed;
+  z-index: 2000;
+  pointer-events: none;
+  background: var(--codexr-viz-tooltip-bg);
+  color: var(--codexr-viz-tooltip-ink);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  max-width: 320px;
+  display: none;
+}
+
+.codexr-chart-tooltip.codexr-visible {
+  display: block;
+}
+
+.codexr-chart-tooltip .codexr-tooltip-title {
+  font-weight: 600;
+  display: block;
+}

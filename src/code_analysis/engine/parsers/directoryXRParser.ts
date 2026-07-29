@@ -16,10 +16,36 @@ import { SHA256Generator } from '../../../utils/sha256Generator';
 import { buildTrackedFileSnapshot } from '../watchers/directorySnapshot';
 import { resolveTrackedSystemPath } from '../watchers/directoryReanalysisData';
 import {
-    CHART_PEDESTAL_RUNTIME_OUTPUT_NAME,
+    ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME,
+    ANALYSIS_MODE_RUNTIME_OUTPUT_NAME,
+    HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME,
+    PROJECT_EVOLUTION_RUNTIME_OUTPUT_NAME,
+    DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME,
+    GUIDE_SCREEN_RUNTIME_OUTPUT_NAME,
+    GUIDE_PAGE_OUTPUT_NAME,
+    readGuideScreenRuntimeContent,
+    readGuidePageContent,
+    LOGO_RUNTIME_OUTPUT_NAME,
+    readLogoRuntimeContent,
+    RENDER_BUDGET_RUNTIME_OUTPUT_NAME,
+    DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME,
+    CODEXR_DEBUG_RUNTIME_OUTPUT_NAME,
+    CODEXR_COMMON_RUNTIME_OUTPUT_NAME,
+    CODEXR_AVATAR_RUNTIME_OUTPUT_NAME,
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
-    readChartPedestalRuntimeContent,
+    readAnalysisTableRuntimeContent,
+    readAnalysisModeRuntimeContent,
+    readHistoricalComparisonRuntimeContent,
+    readProjectEvolutionRuntimeContent,
+    readDependencyGraphRuntimeContent,
+    readRenderBudgetRuntimeContent,
+    readDependencyVisualBudgetRuntimeContent,
+    readCodeXrDebugRuntimeContent,
+    readCodeXrCommonRuntimeContent,
+    readCodeXrGitRefPickerContent,
+    CODEXR_GIT_REF_PICKER_OUTPUT_NAME,
+    readCodeXrAvatarRuntimeContent,
     readCodeXrCollaborationRuntimeContent,
     readCodeXrRoomRuntimeContent,
     readCodeXrRoomTextureContents,
@@ -31,6 +57,10 @@ import {
     XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME,
     readXrChartMappingUiRuntimeContent,
     XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME,
+    readPointerPolicyRuntimeContent,
+    POINTER_POLICY_RUNTIME_OUTPUT_NAME,
+    readImmersiveRigRuntimeContent,
+    IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME,
 } from '../components/customComponents';
 
 export interface DirectoryXRParsingResult {
@@ -76,9 +106,7 @@ export class DirectoryXRParser {
             await fs.promises.mkdir(tempOutputPath, { recursive: true });
             const tempHtmlPath = path.join(tempOutputPath, 'index.html');
             const babiaUiConfig = await storage.getXRBabiaUiConfig();
-            const fieldTypeMap = babiaUiConfig.enabled
-                ? await XRFieldSchemaService.getInstance(context).getFieldTypeMap('directory')
-                : undefined;
+            const fieldTypeMap = await XRFieldSchemaService.getInstance(context).getFieldTypeMap('directory');
 
             const htmlGenerationResult = await TemplateProcessor.generateXRVisualization(
                 chartType,
@@ -89,7 +117,6 @@ export class DirectoryXRParser {
                 tempHtmlPath,
                 payload,
                 {
-                    babiaUiEnabled: babiaUiConfig.enabled,
                     babiaUiVisibleByDefault: babiaUiConfig.visibleByDefault,
                     xrTargetType: 'directory',
                     fieldTypeMap,
@@ -115,31 +142,60 @@ export class DirectoryXRParser {
             }
 
             const jsContent = await fs.promises.readFile(jsFilePath, 'utf8');
+            const codexrCommonRuntimeContent = await readCodeXrCommonRuntimeContent(context.extensionPath);
+            const codexrGitRefPickerRuntimeContent = await readCodeXrGitRefPickerContent(context.extensionPath);
             const virtualScreenRuntimeContent = await readVirtualScreenRuntimeContent(context.extensionPath);
             const virtualScreenManagerRuntimeContent = await readVirtualScreenManagerRuntimeContent(context.extensionPath);
+            const avatarRuntimeContent = await readCodeXrAvatarRuntimeContent(context.extensionPath);
             const collaborationRuntimeContent = await readCodeXrCollaborationRuntimeContent(context.extensionPath);
             const codexrRoomRuntimeContent = await readCodeXrRoomRuntimeContent(context.extensionPath);
             const xrChartMappingUiRuntimeContent = await readXrChartMappingUiRuntimeContent(context.extensionPath);
             const xrChartDebugRuntimeContent = await readXrChartDebugRuntimeContent(context.extensionPath);
-            const chartPedestalRuntimeContent = await readChartPedestalRuntimeContent(context.extensionPath);
+            const analysisTableRuntimeContent = await readAnalysisTableRuntimeContent(context.extensionPath);
+            const analysisModeRuntimeContent = await readAnalysisModeRuntimeContent(context.extensionPath);
+            const historicalComparisonRuntimeContent = await readHistoricalComparisonRuntimeContent(context.extensionPath);
+            const projectEvolutionRuntimeContent = await readProjectEvolutionRuntimeContent(context.extensionPath);
+            const dependencyGraphRuntimeContent = await readDependencyGraphRuntimeContent(context.extensionPath);
+            const guideScreenRuntimeContent = await readGuideScreenRuntimeContent(context.extensionPath);
+            const guidePageContent = await readGuidePageContent(context.extensionPath);
+            const logoRuntimeContent = await readLogoRuntimeContent(context.extensionPath);
+            const renderBudgetRuntimeContent = await readRenderBudgetRuntimeContent(context.extensionPath);
+            const dependencyVisualBudgetRuntimeContent = await readDependencyVisualBudgetRuntimeContent(context.extensionPath);
+            const pointerPolicyRuntimeContent = await readPointerPolicyRuntimeContent(context.extensionPath);
+            const immersiveRigRuntimeContent = await readImmersiveRigRuntimeContent(context.extensionPath);
+            const codexrDebugRuntimeContent = await readCodeXrDebugRuntimeContent(context.extensionPath);
             const codexrRoomTextures = await readCodeXrRoomTextureContents(context.extensionPath);
             const dataJsonContent = JSON.stringify(payload, null, 2);
 
             const generatedFiles = new Map<string, string>();
             generatedFiles.set('index.html', htmlContent);
             generatedFiles.set('main.js', jsContent);
+            generatedFiles.set(CODEXR_COMMON_RUNTIME_OUTPUT_NAME, codexrCommonRuntimeContent);
+            generatedFiles.set(CODEXR_GIT_REF_PICKER_OUTPUT_NAME, codexrGitRefPickerRuntimeContent);
+            generatedFiles.set(CODEXR_AVATAR_RUNTIME_OUTPUT_NAME, avatarRuntimeContent);
             generatedFiles.set(CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME, collaborationRuntimeContent);
             generatedFiles.set(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME, virtualScreenRuntimeContent);
             generatedFiles.set(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent);
             generatedFiles.set(CODEXR_ROOM_RUNTIME_OUTPUT_NAME, codexrRoomRuntimeContent);
+            generatedFiles.set(POINTER_POLICY_RUNTIME_OUTPUT_NAME, pointerPolicyRuntimeContent);
+            generatedFiles.set(IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME, immersiveRigRuntimeContent);
             generatedFiles.set(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME, xrChartMappingUiRuntimeContent);
             generatedFiles.set(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME, xrChartDebugRuntimeContent);
-            generatedFiles.set(CHART_PEDESTAL_RUNTIME_OUTPUT_NAME, chartPedestalRuntimeContent);
+            generatedFiles.set(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME, analysisTableRuntimeContent);
+            generatedFiles.set(ANALYSIS_MODE_RUNTIME_OUTPUT_NAME, analysisModeRuntimeContent);
+            generatedFiles.set(HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME, historicalComparisonRuntimeContent);
+            generatedFiles.set(PROJECT_EVOLUTION_RUNTIME_OUTPUT_NAME, projectEvolutionRuntimeContent);
+            generatedFiles.set(RENDER_BUDGET_RUNTIME_OUTPUT_NAME, renderBudgetRuntimeContent);
+            generatedFiles.set(DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME, dependencyVisualBudgetRuntimeContent);
+            generatedFiles.set(DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME, dependencyGraphRuntimeContent);
+            generatedFiles.set(GUIDE_SCREEN_RUNTIME_OUTPUT_NAME, guideScreenRuntimeContent);
+            generatedFiles.set(GUIDE_PAGE_OUTPUT_NAME, guidePageContent);
+            generatedFiles.set(LOGO_RUNTIME_OUTPUT_NAME, logoRuntimeContent);
+            generatedFiles.set(CODEXR_DEBUG_RUNTIME_OUTPUT_NAME, codexrDebugRuntimeContent);
             generatedFiles.set('data.json', dataJsonContent);
             codexrRoomTextures.forEach((asset) => {
                 generatedFiles.set(asset.relativeOutputPath, asset.content);
             });
-
             session.metadata.mainHtmlFileName = 'index.html';
 
             return {
@@ -186,4 +242,3 @@ export class DirectoryXRParser {
 }
 
 export const directoryXRParser = new DirectoryXRParser();
-

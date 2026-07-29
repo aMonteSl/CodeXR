@@ -39,7 +39,7 @@ export class AnalysisBootstrap {
 
     constructor(private readonly context: vscode.ExtensionContext) {
         this.executePython = new ExecutePython(context);
-        this.livePanelParser = new LivePanelParser();
+        this.livePanelParser = new LivePanelParser(context);
         this.visualizeDOMParser = new VisualizeDOMParser(context);
         this.fileXRParser = new FileXRParser(context);
     }

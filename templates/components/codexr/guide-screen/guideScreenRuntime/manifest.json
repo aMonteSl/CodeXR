@@ -1,0 +1,8 @@
+{
+  "output": "guideScreenRuntime.js",
+  "parts": [
+    "guideContent.js",
+    "guideDomRenderer.js",
+    "guideScreen.js"
+  ]
+}

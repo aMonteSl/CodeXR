@@ -6,6 +6,7 @@ import {
     configurePort,
     toggleAutoOpen,
     configureOpenMode,
+    configureRemoteAccess,
     resetToDefault,
     setExtensionContext
 } from '../../servers/commands/serverCommands';
@@ -61,6 +62,13 @@ export function getServerCommandRegistrations(
             description: 'Configure open mode',
             handler: configureOpenMode,
             errorMessage: 'Failed to configure open mode'
+        },
+        {
+            id: 'codexr.server.config.remoteAccess',
+            module: 'SERVER',
+            description: 'Configure remote access',
+            handler: configureRemoteAccess,
+            errorMessage: 'Failed to configure remote access',
         },
         {
             id: 'codexr.server.config.resetToDefault',

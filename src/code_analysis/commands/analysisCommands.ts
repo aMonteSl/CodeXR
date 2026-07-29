@@ -20,7 +20,6 @@ import { AnalysisDirectorySetting } from '../views/subsections/analysis_settings
 import { ViewThemeSetting } from '../views/subsections/analysis_settings/view_theme/viewTheme';
 import { AutoAnalysisDelaySetting } from '../views/subsections/analysis_settings/auto_analysis_delay/autoAnalysisDelay';
 import { AutoAnalysisEnabledSetting } from '../views/subsections/analysis_settings/auto_analysis_enabled/autoAnalysisEnabled';
-import { BabiaUiSetting } from '../views/subsections/analysis_settings/babia_ui/babiaUi';
 import { ChartTypeFileSetting } from '../views/subsections/analysis_settings/chart_type_file/chartTypeFile';
 import { ChartTypeDirectorySetting } from '../views/subsections/analysis_settings/chart_type_directory/chartTypeDirectory';
 import { DimensionMappingFileSetting } from '../views/subsections/analysis_settings/dimension_mapping_file/dimensionMappingFile';
@@ -45,7 +44,6 @@ export class CodeAnalysisCommands {
         const tempViewThemeSetting = new ViewThemeSetting(context);
         const tempAutoAnalysisDelaySetting = new AutoAnalysisDelaySetting(context);
         const tempAutoAnalysisEnabledSetting = new AutoAnalysisEnabledSetting(context);
-        const tempBabiaUiSetting = new BabiaUiSetting(context);
         const tempChartTypeFileSetting = new ChartTypeFileSetting(context);
         const tempChartTypeDirectorySetting = new ChartTypeDirectorySetting(context);
         const tempDimensionMappingFileSetting = new DimensionMappingFileSetting(context);
@@ -62,7 +60,6 @@ export class CodeAnalysisCommands {
             tempViewThemeSetting,
             tempAutoAnalysisDelaySetting,
             tempAutoAnalysisEnabledSetting,
-            tempBabiaUiSetting,
             tempChartTypeFileSetting,
             tempChartTypeDirectorySetting,
             tempDimensionMappingFileSetting,

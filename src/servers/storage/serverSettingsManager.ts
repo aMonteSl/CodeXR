@@ -3,6 +3,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { generateNonce } from '../../utils/nonceGenerator';
 import { CodeXRLogger } from '../../core/logging/logger';
+import {
+    DEFAULT_REMOTE_ACCESS_SETTINGS,
+    RemoteAccessSettings,
+} from '../../remote_access';
 
 const logger = CodeXRLogger.getLogger('SERVER_SETTINGS');
 
@@ -21,6 +25,7 @@ export interface ServerSettings {
         autoOpen: boolean;
         openMode: 'browser' | 'lateralPanel';
     };
+    remoteAccess: RemoteAccessSettings;
     configNonce: string;
     version: string;
 }
@@ -40,8 +45,9 @@ export const DEFAULT_SERVER_SETTINGS: ServerSettings = {
         autoOpen: true,
         openMode: 'browser',
     },
+    remoteAccess: { ...DEFAULT_REMOTE_ACCESS_SETTINGS },
     configNonce: generateNonce(),
-    version: '1.0.0',
+    version: '1.2.0',
 };
 
 /**
@@ -113,7 +119,7 @@ export class ServerSettingsManager {
      * Get current server settings.
      */
     public getServerSettings(): ServerSettings {
-        return { ...this.settings };
+        return this.deepMerge({}, this.settings);
     }
 
     /**
@@ -219,6 +225,7 @@ export class ServerSettingsManager {
         port: number;
         autoOpen: boolean;
         openMode: string;
+        remoteAccessEnabled: boolean;
     } {
         let httpModeDisplay: string;
 
@@ -238,6 +245,7 @@ export class ServerSettingsManager {
             port: this.settings.defaultPort,
             autoOpen: this.settings.launch.autoOpen,
             openMode: this.settings.launch.openMode === 'browser' ? 'Browser' : 'Lateral Panel',
+            remoteAccessEnabled: this.settings.remoteAccess.enabled,
         };
     }
 
@@ -290,13 +298,31 @@ export class ServerSettingsManager {
             };
         }
 
+        if (updates.remoteAccessEnabled !== undefined) {
+            newUpdates.remoteAccess = {
+                ...this.settings.remoteAccess,
+                enabled: !!updates.remoteAccessEnabled,
+            };
+        }
+
         await this.updateServerSettings(newUpdates);
     }
 
     private normalizePersistedSettings(savedSettings: Partial<ServerSettings>): ServerSettings {
         const mergedSettings = this.deepMerge(DEFAULT_SERVER_SETTINGS, savedSettings);
+        // One-shot migration: cross-network is now enabled by default, but
+        // saved values win over defaults on merge and every pre-existing
+        // install persisted `enabled: false`. A file without the marker
+        // predates the new default: flip it once and seal the marker, so a
+        // user who disables it afterwards keeps their choice forever.
+        const remoteAccess = { ...mergedSettings.remoteAccess };
+        if (!savedSettings.remoteAccess?.enabledByDefaultApplied) {
+            remoteAccess.enabled = true;
+            remoteAccess.enabledByDefaultApplied = true;
+        }
         return {
             ...mergedSettings,
+            remoteAccess,
             configNonce: mergedSettings.configNonce || DEFAULT_SERVER_SETTINGS.configNonce,
         };
     }

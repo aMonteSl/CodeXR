@@ -72,6 +72,9 @@ class EmptyFileHandlingTests(unittest.TestCase):
             self.assertEqual(snapshot['totalLines'], 0)
             self.assertEqual(snapshot['functionCount'], 0)
             self.assertEqual(snapshot['maxFunctionNestingDepth'], 0)
+            self.assertIn('modifiedAtMs', snapshot)
+            self.assertIn('modifiedAtIso', snapshot)
+            self.assertIsInstance(snapshot['modifiedAtMs'], int)
             self.assertEqual(payload, [])
         finally:
             Path(file_path).unlink(missing_ok=True)
@@ -90,6 +93,8 @@ class EmptyFileHandlingTests(unittest.TestCase):
             self.assertEqual(payload[0]['complexityBand'], 'normal')
             self.assertEqual(payload[0]['filePath'], normalize_path_for_babia(file_path))
             self.assertEqual(payload[0]['treePath'], build_tree_path(Path(file_path).name, Path(file_path).stem))
+            self.assertEqual(payload[0]['modifiedAtMs'], snapshot['modifiedAtMs'])
+            self.assertEqual(payload[0]['modifiedAtIso'], snapshot['modifiedAtIso'])
         finally:
             Path(file_path).unlink(missing_ok=True)
 

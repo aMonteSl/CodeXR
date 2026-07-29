@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { ActiveServer, RegistryEvent, RegistryEventType, LaunchMode, CertMode } from '../model/activeServerModel';
+import { RemoteAccessState } from '../../remote_access/model/remoteAccessModel';
 
 /**
  * Active Server Registry
@@ -117,6 +118,16 @@ export class ActiveServerRegistry {
         
         this.emitEvent('serverUpdated', serverId, server);
         
+        return true;
+    }
+
+    public updateRemoteAccessState(serverId: string, state: RemoteAccessState): boolean {
+        const server = this.servers.get(serverId);
+        if (!server) {
+            return false;
+        }
+        server.remoteAccess = { ...state };
+        this.emitEvent('serverUpdated', serverId, server);
         return true;
     }
 

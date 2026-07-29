@@ -1,0 +1,3 @@
+module TtcnSample {
+  import from shared all;
+}

@@ -16,6 +16,8 @@ def build_file_metric_summary(file_analysis: Dict[str, Any], file_path: str, rel
         'relativePath': relative_path if relative_path is not None else os.path.basename(file_path),
         'language': file_analysis.get('language', get_metric_language(file_path)),
         'timestamp': file_analysis.get('timestamp'),
+        'modifiedAtMs': file_analysis.get('modifiedAtMs'),
+        'modifiedAtIso': file_analysis.get('modifiedAtIso'),
         'status': file_analysis.get('status', 'success'),
         'totalLines': file_analysis.get('totalLines', 0),
         'codeLines': file_analysis.get('codeLines', 0),

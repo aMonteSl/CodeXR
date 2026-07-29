@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import { handleHttpModeClick, handlePortClick, handleAutoOpenClick, handleOpenModeClick } from '../views/interactions/handleConfigurationClicks';
 import { MultiServerLauncher } from '../runtime/multiServerLauncher';
 import { ServerSettingsManager, ServerSettings } from '../storage/serverSettingsManager';
-import { PreviewRenderer } from '../runtime/previewRenderer';
+import { CloudflaredBinaryManager, RemoteAccessManager } from '../../remote_access';
 
 /**
  * Current server configuration state (legacy)
@@ -149,11 +149,6 @@ export async function startLocalServer(): Promise<void> {
             vscode.window.showInformationMessage(`Server started at ${result.serverUrl}`);
         }
         
-        // Step 7: Auto-open if configured
-        if (settings.launch.autoOpen && result.serverUrl) {
-            await handleAutoOpen(result.serverUrl, selectedFile, settings.launch.openMode);
-        }
-        
         // Refresh the tree view to show server status
         vscode.commands.executeCommand('codexr.servers.refresh');
         
@@ -187,6 +182,52 @@ export async function toggleAutoOpen(): Promise<void> {
 
 export async function configureOpenMode(): Promise<void> {
     await handleOpenModeClick();
+}
+
+export async function configureRemoteAccess(): Promise<void> {
+    if (!extensionContext) {
+        vscode.window.showErrorMessage('SERVER: Extension context not available');
+        return;
+    }
+    const settingsManager = ServerSettingsManager.getInstance(extensionContext);
+    await settingsManager.ensureInitialized();
+    const current = settingsManager.getServerSettings().remoteAccess.enabled;
+    const selection = await vscode.window.showQuickPick([
+        {
+            label: 'Disabled',
+            description: 'Servers are only reachable on the local network.',
+            enabled: false,
+        },
+        {
+            label: 'Enabled',
+            description: 'Allows explicitly sharing servers through a Cloudflare Quick Tunnel.',
+            enabled: true,
+        },
+    ], {
+        title: 'Cross-network connections',
+        placeHolder: current ? 'Currently enabled' : 'Currently disabled',
+    });
+    if (!selection) {
+        return;
+    }
+    await settingsManager.updateServerSettings({
+        remoteAccess: {
+            enabled: selection.enabled,
+            provider: 'cloudflare-quick',
+        },
+    });
+    if (selection.enabled) {
+        // Fire and forget: each tunnel can take up to 30 s to publish, and the
+        // registry updates repaint the tree as servers move starting → shared.
+        void RemoteAccessManager.getInstance()?.startAllEligible();
+    } else {
+        await RemoteAccessManager.getInstance()?.stopAll();
+        // An explicit disable uninstalls the component CodeXR downloaded for
+        // this: nothing lingers in global storage once cross-network is off.
+        // A system-wide cloudflared on PATH is never touched — it is not
+        // CodeXR's to remove.
+        await new CloudflaredBinaryManager(extensionContext).uninstallManagedBinary();
+    }
 }
 
 /**
@@ -341,36 +382,3 @@ async function validateCustomCertificates(settings: ServerSettings): Promise<boo
         return false;
     }
 }
-
-/**
- * Handles auto-opening the server URL based on configuration
- * @param serverUrl - The server URL to open
- * @param selectedFile - The HTML file being served
- * @param openMode - How to open ('browser' or 'lateralPanel')
- */
-async function handleAutoOpen(serverUrl: string, selectedFile: string, openMode: 'browser' | 'lateralPanel', serverId?: string): Promise<void> {
-    console.log(`SERVER: Auto-opening ${serverUrl} in ${openMode} mode for file: ${selectedFile}`);
-    
-    try {
-        if (openMode === 'browser') {
-            console.log(`SERVER: Opening ${serverUrl} in external browser`);
-            await PreviewRenderer.openPreview(serverUrl, selectedFile, openMode);
-            vscode.window.showInformationMessage(`Opened ${path.basename(selectedFile)} in browser`);
-        } else if (openMode === 'lateralPanel') {
-            console.log(`SERVER: Opening ${selectedFile} in VS Code webview panel`);
-            if (serverId) {
-                await PreviewRenderer.openPreview(serverUrl, selectedFile, openMode, serverId);
-            } else {
-                // For legacy calls without serverId, generate a temporary one
-                const tempServerId = `temp-${Date.now()}`;
-                console.log(`SERVER: No serverId provided, using temporary ID: ${tempServerId}`);
-                await PreviewRenderer.openPreview(serverUrl, selectedFile, openMode, tempServerId);
-            }
-            vscode.window.showInformationMessage(`Opened ${path.basename(selectedFile)} in VS Code panel`);
-        }
-    } catch (error) {
-        console.error(`SERVER: Error opening preview: ${error}`);
-        vscode.window.showWarningMessage(`Failed to auto-open: ${error instanceof Error ? error.message : String(error)}`);
-    }
-}
-

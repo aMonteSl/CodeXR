@@ -110,9 +110,9 @@ export class ExampleItemFactory {
         }
 
         if (!example.isValid) {
-            lines.push('⚠️ This example has issues and may not work properly');
+            lines.push('Warning: This example has issues and may not work properly');
         } else {
-            lines.push('✅ Click to launch this example');
+            lines.push('Click to launch this example');
         }
 
         return lines.join('\\n');

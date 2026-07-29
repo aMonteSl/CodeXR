@@ -1,0 +1,309 @@
+// == codexrCollaborationRuntime.js | clientCore (assembled per manifest.json; see COMPONENTS.md) ==
+  function createClient(win) {
+    const shared = {
+      config: mergeConfig(readConfigFromJsonScript(win) || win.__CODEXR_COLLABORATION_CONFIG__, {
+        virtualScreenConfig: win.__CODEXR_VIRTUAL_SCREEN_CONFIG__ || null,
+      }),
+      socket: null,
+      reconnectTimer: null,
+      sessionInfo: null,
+      sessionInfoPromise: null,
+      peerId: '',
+      roomId: '',
+      joinedRoom: false,
+      snapshotReady: false,
+      revision: 0,
+      connectionStatus: 'disconnected',
+      error: null,
+      kicked: false,
+      sessionEnded: false,
+      profile: { ...DEFAULT_PROFILE },
+      participants: new Map(),
+      remotePresence: new Map(),
+      presenterPeerId: null,
+      roomEntities: new Map(),
+      pendingEntities: new Map(),
+      entityRuntimes: new Map(),
+      messageListeners: new Map(),
+      manager: null,
+      destroyed: false,
+      presenceLoopActive: false,
+      lastPresenceSentAt: 0,
+      lastPresenceSignature: '',
+      cursorTrackingAttached: false,
+      localCursorState: null,
+      remoteAvatars: new Map(),
+      remoteCursors: new Map(),
+      remoteRays: new Map(),
+      presenceRoot: null,
+      cursorOverlayRoot: null,
+    };
+
+    function getDocument() {
+      return win.document;
+    }
+
+    function getScene() {
+      return getDocument()?.querySelector(shared.config.sceneSelector || 'a-scene') || null;
+    }
+
+    function getEntityKey(entityKind, entityId) {
+      return `${String(entityKind || '').trim()}:${String(entityId || '').trim()}`;
+    }
+
+    function getPublicState() {
+      const localParticipant = shared.participants.get(shared.peerId) || null;
+      return {
+        connectionStatus: shared.connectionStatus,
+        error: shared.error,
+        peerId: shared.peerId,
+        roomId: shared.roomId,
+        localParticipant: localParticipant ? { ...localParticipant } : null,
+        participants: Array.from(shared.participants.values()).map(function (participant) {
+          return { ...participant };
+        }),
+        presenterPeerId: shared.presenterPeerId,
+        profile: { ...shared.profile },
+        kicked: shared.kicked,
+        sessionEnded: shared.sessionEnded,
+      };
+    }
+
+    function emitStateChanged() {
+      getDocument()?.dispatchEvent(new win.CustomEvent(STATE_CHANGED_EVENT, {
+        detail: getPublicState(),
+      }));
+    }
+
+    function setConnectionStatus(status) {
+      shared.connectionStatus = status;
+      emitStateChanged();
+    }
+
+    function setError(error) {
+      shared.error = error || null;
+      if (error) {
+        // Server-reported failures must be visible: silently stored errors
+        // made broken feature requests look like the server never answered.
+        win.console?.warn?.('[CodeXR][Collaboration] Server error:', error.code || '', error.message || error);
+      }
+      emitStateChanged();
+    }
+
+    function getSocketUrl(pathname) {
+      const location = win.location;
+      if (!location?.host) {
+        return null;
+      }
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const normalizedPath = pathname?.startsWith('/') ? pathname : `/${pathname || 'codexr-room'}`;
+      return `${protocol}//${location.host}${normalizedPath}`;
+    }
+
+    // A self-contained export (README-EXPORT.md next to the scene) has no
+    // CodeXR server: the manifest written at export time stands in for the
+    // collaboration session, delivering the capabilities and the same entity
+    // snapshots the room would have sent. Only probed after the session
+    // endpoint fails, so a live session never pays for it.
+    async function resolveOfflineExportInfo(fallback) {
+      try {
+        const response = await win.fetch('./codexr-export-manifest.json', { cache: 'no-store' });
+        if (!response.ok) {
+          return null;
+        }
+        const manifest = await response.json();
+        if (!manifest || manifest.kind !== 'codexr-export') {
+          return null;
+        }
+        shared.offlineExport = manifest;
+        win.console?.info?.('[CodeXR][Collaboration] Offline export detected: replaying the exported analysis data.');
+        applyOfflineExportEntities(manifest);
+        return {
+          ...fallback,
+          offlineExport: true,
+          capabilities: manifest.capabilities || {},
+        };
+      } catch (_error) {
+        return null;
+      }
+    }
+
+    function applyOfflineExportEntities(manifest) {
+      const entities = Array.isArray(manifest.entities) ? manifest.entities : [];
+      shared.snapshotReady = true;
+      entities.forEach(function (entity) {
+        if (!entity?.entityKind || !entity?.entityId) {
+          return;
+        }
+        // Git-mode snapshots ship as a resultUrl so the manifest stays small:
+        // fetch the exported result, then inject through the same path a live
+        // room snapshot uses (pendingEntities covers late registrants).
+        if (entity.resultUrl && !entity.result) {
+          void win.fetch(String(entity.resultUrl), { cache: 'no-store' })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (result) {
+              if (result) {
+                applyEntityStateToRuntime({ ...entity, result }, { source: 'offline-export' });
+              }
+            })
+            .catch(function () {});
+          return;
+        }
+        applyEntityStateToRuntime(entity, { source: 'offline-export' });
+      });
+    }
+
+    async function resolveSessionInfo() {
+      if (shared.sessionInfo) {
+        return shared.sessionInfo;
+      }
+      if (shared.sessionInfoPromise) {
+        return shared.sessionInfoPromise;
+      }
+
+      const fallback = {
+        roomId: String(shared.config.roomId || '').trim() || 'codexr-session:local',
+        roomSocketPath: shared.config.roomSignalingPath || '/codexr-room',
+        broadcastSocketPath: shared.config.broadcastSocketPath || '/codexr-broadcast',
+      };
+      if (!shared.config.collaborationEnabled || typeof win.fetch !== 'function') {
+        shared.sessionInfo = fallback;
+        return fallback;
+      }
+
+      if (shared.config.offlineExport === true) {
+        shared.sessionInfoPromise = resolveOfflineExportInfo(fallback)
+          .then(function (offlineInfo) {
+            shared.sessionInfo = offlineInfo || fallback;
+            return shared.sessionInfo;
+          })
+          .finally(function () {
+            shared.sessionInfoPromise = null;
+          });
+        return shared.sessionInfoPromise;
+      }
+
+      shared.sessionInfoPromise = win.fetch(shared.config.sessionEndpoint || '/api/collaboration/session', {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin',
+      }).then(async function (response) {
+        if (!response.ok) {
+          throw new Error(`Collaboration session request failed with ${response.status}`);
+        }
+        shared.sessionInfo = { ...fallback, ...(await response.json()) };
+        applyExtensionConfiguration(shared.sessionInfo);
+        return shared.sessionInfo;
+      }).catch(async function () {
+        shared.sessionInfo = (await resolveOfflineExportInfo(fallback)) || fallback;
+        return shared.sessionInfo;
+      }).finally(function () {
+        shared.sessionInfoPromise = null;
+      });
+      return shared.sessionInfoPromise;
+    }
+
+    function send(message) {
+      if (!shared.socket || shared.socket.readyState !== win.WebSocket.OPEN) {
+        return false;
+      }
+      shared.socket.send(JSON.stringify(message));
+      return true;
+    }
+
+    function applyExtensionConfiguration(configuration) {
+      const profile = configuration?.profile || configuration?.collaborationProfile;
+      if (profile && typeof profile === 'object') {
+        const customName = sanitizeDisplayName(profile.customName);
+        shared.profile = {
+          identityMode: profile.identityMode === 'custom' && customName ? 'custom' : 'anonymous',
+          customName,
+          avatarId: /^(avatar-[1-6]|auto)$/.test(profile.avatarId) ? profile.avatarId : DEFAULT_PROFILE.avatarId,
+        };
+      }
+      global.CodeXRAvatarRuntime?.configureAsset?.({
+        available: configuration?.avatarModelAvailable === true,
+        modelUrl: '/api/collaboration/avatar-model',
+      });
+    }
+
+    function scheduleReconnect() {
+      if (
+        shared.destroyed
+        || shared.kicked
+        || shared.sessionEnded
+        || shared.reconnectTimer
+        || !shared.config.collaborationEnabled
+        || shared.offlineExport
+      ) {
+        return;
+      }
+      shared.reconnectTimer = win.setTimeout(function () {
+        shared.reconnectTimer = null;
+        void ensureSocket();
+      }, shared.config.reconnectDelayMs || DEFAULT_CONFIG.reconnectDelayMs);
+    }
+
+    async function ensureSocket() {
+      if (
+        shared.destroyed
+        || shared.kicked
+        || shared.sessionEnded
+        || !shared.config.collaborationEnabled
+        || shared.config.offlineExport === true
+        || typeof win.WebSocket !== 'function'
+      ) {
+        return;
+      }
+      if (shared.socket && [win.WebSocket.OPEN, win.WebSocket.CONNECTING].includes(shared.socket.readyState)) {
+        return;
+      }
+
+      const sessionInfo = await resolveSessionInfo();
+      // Resolving may have discovered an offline export: there is no room to
+      // join, and retrying would only churn the console.
+      if (shared.offlineExport) {
+        return;
+      }
+      shared.roomId = String(sessionInfo.roomId || '').trim() || shared.roomId || 'codexr-session:local';
+      const url = getSocketUrl(sessionInfo.roomSocketPath || shared.config.roomSignalingPath);
+      if (!url) {
+        return;
+      }
+
+      setConnectionStatus('connecting');
+      win.console?.log?.('[Code-XR Fix][Collab] connecting to', url);
+      const socket = new win.WebSocket(url);
+      shared.socket = socket;
+      socket.onopen = function () {
+        shared.joinedRoom = false;
+        shared.snapshotReady = false;
+        setError(null);
+        send({
+          type: 'room-join',
+          roomId: shared.roomId,
+        });
+      };
+      socket.onmessage = function (event) {
+        try {
+          handleServerMessage(JSON.parse(event.data));
+        } catch (_error) {
+          // Ignore malformed collaboration payloads.
+        }
+      };
+      socket.onclose = function (event) {
+        win.console?.warn?.('[Code-XR Fix][Collab] socket closed (code', event?.code, ')');
+        shared.joinedRoom = false;
+        if (shared.socket === socket) {
+          shared.socket = null;
+        }
+        setConnectionStatus(shared.kicked ? 'removed' : shared.sessionEnded ? 'ended' : 'disconnected');
+        scheduleReconnect();
+      };
+      socket.onerror = function () {
+        if (shared.socket === socket) {
+          shared.socket = null;
+        }
+        setError({ code: 'connection-error', message: 'Could not connect to the collaboration room.' });
+      };
+    }

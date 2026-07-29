@@ -2,14 +2,20 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { TemplateHTMLProcessor, HTMLTemplateData } from '../../../babia_templates/processing/templateHTMLProcessor';
 import {
+    CODEXR_AVATAR_RUNTIME_OUTPUT_NAME,
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME,
+    readCodeXrAvatarRuntimeContent,
     readCodeXrCollaborationRuntimeContent,
     readCodeXrDomSceneCollaborationRuntimeContent,
     readVirtualScreenManagerRuntimeContent,
     VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME,
     readVirtualScreenRuntimeContent,
     VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME,
+    readPointerPolicyRuntimeContent,
+    POINTER_POLICY_RUNTIME_OUTPUT_NAME,
+    readImmersiveRigRuntimeContent,
+    IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME,
 } from '../components/customComponents';
 
 /**
@@ -70,7 +76,7 @@ export class VisualizeDOMParser {
                 this.context
             );
 
-            // 🔍 DEBUG: Log detailed information about what templateHTMLProcessor returned
+            // DEBUG: Log detailed information about what templateHTMLProcessor returned
             console.log(`VISUALIZE_DOM_PARSER:  TemplateHTMLProcessor returned:`, {
                 
                 success: processingResult.success,
@@ -109,6 +115,9 @@ export class VisualizeDOMParser {
             // Add main.js from templateHTMLProcessor 
             resultFiles.set('main.js', processingResult.jsContent);
             console.log(`VISUALIZE_DOM_PARSER:  Added main.js (${processingResult.jsContent.length} chars)`);
+            const avatarRuntime = await readCodeXrAvatarRuntimeContent(this.context.extensionPath);
+            resultFiles.set(CODEXR_AVATAR_RUNTIME_OUTPUT_NAME, avatarRuntime);
+            console.log(`VISUALIZE_DOM_PARSER:  Added ${CODEXR_AVATAR_RUNTIME_OUTPUT_NAME} (${avatarRuntime.length} chars)`);
             const collaborationRuntime = await readCodeXrCollaborationRuntimeContent(this.context.extensionPath);
             resultFiles.set(CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME, collaborationRuntime);
             console.log(`VISUALIZE_DOM_PARSER:  Added ${CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME} (${collaborationRuntime.length} chars)`);
@@ -121,8 +130,14 @@ export class VisualizeDOMParser {
             const domSceneCollaborationRuntime = await readCodeXrDomSceneCollaborationRuntimeContent(this.context.extensionPath);
             resultFiles.set(CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME, domSceneCollaborationRuntime);
             console.log(`VISUALIZE_DOM_PARSER:  Added ${CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME} (${domSceneCollaborationRuntime.length} chars)`);
+            const pointerPolicyRuntime = await readPointerPolicyRuntimeContent(this.context.extensionPath);
+            resultFiles.set(POINTER_POLICY_RUNTIME_OUTPUT_NAME, pointerPolicyRuntime);
+            console.log(`VISUALIZE_DOM_PARSER:  Added ${POINTER_POLICY_RUNTIME_OUTPUT_NAME} (${pointerPolicyRuntime.length} chars)`);
+            const immersiveRigRuntime = await readImmersiveRigRuntimeContent(this.context.extensionPath);
+            resultFiles.set(IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME, immersiveRigRuntime);
+            console.log(`VISUALIZE_DOM_PARSER:  Added ${IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME} (${immersiveRigRuntime.length} chars)`);
 
-            // 🔍 FINAL DEBUG: Verify the result Map
+            // FINAL DEBUG: Verify the result Map
             console.log(`VISUALIZE_DOM_PARSER:  FINAL DEBUG - Result Map verification:`);
             console.log(`VISUALIZE_DOM_PARSER:  Map size: ${resultFiles.size}`);
             console.log(`VISUALIZE_DOM_PARSER:  Map keys: [${Array.from(resultFiles.keys()).join(', ')}]`);
@@ -172,7 +187,6 @@ export class VisualizeDOMParser {
         return canProcess;
     }
 }
-
 
 
 

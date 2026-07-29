@@ -1,4 +1,3 @@
-import json
 import sys
 import unittest
 from pathlib import Path
@@ -97,8 +96,8 @@ class ManualMetricsSuite(unittest.TestCase):
         result = extract_html_content(str(HTML_FIXTURE))
         self.assertTrue(result['preparedForVisualization'])
         self.assertIn('Manual DOM Fixture', result['htmlContent'])
-        self.assertNotIn('<script', result['htmlContent'].lower())
-        self.assertNotIn('<style', result['htmlContent'].lower())
+        self.assertIn('<script', result['htmlContent'].lower())
+        self.assertIn('<style', result['htmlContent'].lower())
 
 
 if __name__ == '__main__':

@@ -1,0 +1,6 @@
+[
+  { "name": "analysis", "totalLines": 72, "complexity": 14, "functionCount": 8, "language": "TypeScript" },
+  { "name": "server", "totalLines": 54, "complexity": 9, "functionCount": 6, "language": "TypeScript" },
+  { "name": "history", "totalLines": 38, "complexity": 6, "functionCount": 4, "language": "JavaScript" },
+  { "name": "dependencies", "totalLines": 61, "complexity": 11, "functionCount": 7, "language": "Python" }
+]

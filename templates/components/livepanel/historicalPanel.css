@@ -1,0 +1,94 @@
+/**
+ * Shared LivePanel Historical Comparison panel styles.
+ * The section's tiles reuse each template's own .metric styles; everything
+ * panel-specific (controls row, status line, diff accents) lives here.
+ */
+
+.historical-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.historical-source {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  flex: 1 1 220px;
+  max-width: 380px;
+}
+
+.historical-source label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--codexr-viz-ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.historical-source select {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--codexr-viz-baseline);
+  background: var(--codexr-viz-surface);
+  color: var(--codexr-viz-ink);
+  font: inherit;
+  max-width: 100%;
+}
+
+.historical-compare-btn {
+  padding: 9px 18px;
+  border-radius: 6px;
+  border: none;
+  background: var(--codexr-viz-sequential);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.historical-compare-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.historical-compare-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.historical-status {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--codexr-viz-ink-2);
+  min-height: 1.3em;
+  margin-bottom: 12px;
+}
+
+.historical-status.error {
+  color: var(--codexr-viz-status-critical);
+}
+
+.historical-meta {
+  font-size: 0.82rem;
+  color: var(--codexr-viz-muted);
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+/* Delta tiles: the count tiles reuse .metric; these accents color the value
+   with the diff role (identity, git convention), never text-on-color. */
+.historical-tile-added .metric-value { color: var(--codexr-viz-diff-added); }
+.historical-tile-removed .metric-value { color: var(--codexr-viz-diff-removed); }
+.historical-tile-modified .metric-value { color: var(--codexr-viz-diff-modified); }
+.historical-tile-unchanged .metric-value { color: var(--codexr-viz-diff-unchanged); }
+
+.historical-subsection {
+  margin-top: 18px;
+}
+
+.historical-subsection h3 {
+  margin: 0 0 10px;
+}

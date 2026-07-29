@@ -19,3 +19,22 @@ test('webpack copies Python assets from src/code_analysis/python into dist/code_
     assert.match(webpackConfigSource, /to: 'code_analysis\/python'/);
     assert.equal(webpackConfigSource.includes('src/analysis/python'), false);
 });
+
+test('Python analysis uses the Lizard analyzer directly', () => {
+    const fileEngineSource = fs.readFileSync(
+        path.join(projectRoot, 'src', 'code_analysis', 'python', 'utils', 'file_analysis_engine.py'),
+        'utf8',
+    );
+    assert.match(fileEngineSource, /from lizard_analyzer import analyze_file as analyze_with_lizard/);
+    assert.match(fileEngineSource, /lizard_data = analyze_with_lizard\(file_path\)/);
+});
+
+test('analysis configuration uses the active storage module and no legacy storage shims', () => {
+    const legacyStoragePath = path.join(projectRoot, 'src', 'utils', 'analysisSettingsStorage.ts');
+    const emptyStoragePath = path.join(projectRoot, 'src', 'code_analysis', 'storage');
+    const activeStoragePath = path.join(projectRoot, 'src', 'code_analysis', 'configuration', 'analysisConfigurationStorage.ts');
+
+    assert.equal(fs.existsSync(legacyStoragePath), false);
+    assert.equal(fs.existsSync(emptyStoragePath), false);
+    assert.ok(fs.existsSync(activeStoragePath));
+});

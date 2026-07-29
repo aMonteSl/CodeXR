@@ -33,7 +33,18 @@ export class ModularTreeItem extends vscode.TreeItem {
     public serverItemType?: 'config-group' | 'config-option' | 'launch-option';
     
     // Active Server-specific properties for compatibility
-    public activeServerItemType?: 'server-item' | 'control-option' | 'no-servers';
+    public activeServerItemType?:
+        | 'server-item'
+        | 'control-option'
+        | 'no-servers'
+        | 'info-item'
+        | 'participants-group'
+        | 'participant-item'
+        | 'actions-group'
+        | 'action-item'
+        | 'remote-group'
+        | 'collaboration-group'
+        | 'collaboration-item';
     public activeServer?: any;
     
     // Babia Examples-specific properties for compatibility
@@ -49,9 +60,9 @@ export class ModularTreeItem extends vscode.TreeItem {
     public originalAnalysisItem?: any;
     
     // Visualization Settings-specific properties for compatibility
-    public visualizationSettingsItemType?: 'settings-field' | 'error';
+    public visualizationSettingsItemType?: 'settings-field' | 'error' | 'reset-action';
     public originalSettingsItem?: any;
-    
+
     constructor(
         label: string,
         collapsibleState: vscode.TreeItemCollapsibleState,

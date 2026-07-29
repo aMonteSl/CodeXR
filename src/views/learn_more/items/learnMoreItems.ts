@@ -59,6 +59,23 @@ export class LearnMoreModularItemFactory {
         
         items.push(learnMoreItem);
 
+        const authorItem = new LearnMoreModularTreeItem(
+            'Meet the Creator',
+            vscode.TreeItemCollapsibleState.None,
+            'action',
+            {
+                command: 'codeXR.openAuthorWebsite',
+                title: 'Open Author Website',
+                arguments: []
+            },
+            new vscode.ThemeIcon('account', new vscode.ThemeColor('charts.foreground')),
+            'Visit the personal website of Adrián Montes Linares, the author of CodeXR',
+            'About the author',
+            'learnMoreAuthorAction'
+        );
+
+        items.push(authorItem);
+
         const supportItem = new LearnMoreModularTreeItem(
             'Support CodeXR (Buy Me a Coffee)',
             vscode.TreeItemCollapsibleState.None,

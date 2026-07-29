@@ -252,6 +252,7 @@ def analyze_file(file_path: str) -> Dict[str, Any]:
             functions.append(
                 {
                     'name': getattr(func, 'name', 'unknown') or 'unknown',
+                    'longName': getattr(func, 'long_name', '') or getattr(func, 'name', 'unknown') or 'unknown',
                     'lineStart': line_start,
                     'lineEnd': line_end,
                     'lineCount': line_count,

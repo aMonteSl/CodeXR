@@ -2,16 +2,34 @@ import * as http from 'http';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as vscode from 'vscode';
-import { parse as parseUrl } from 'url';
 import { sseManager } from './sse/SSEManager';
 import { fileToServerMap } from '../../utils/fileToServerMap';
 import { NetworkUtils } from '../utils/networkUtils';
 import { ScreenBroadcastSignalingServer } from './broadcast/screenBroadcastSignalingServer';
 import { CollaborationRoomServer } from './collaboration/collaborationRoomServer';
+import { CollaborationProfileManager, ConnectedParticipantSummary } from '../../collaboration';
+import { RemoteSessionAuthority } from '../../remote_access';
+import { addCorsHeaders, sendErrorResponse, sendJsonResponse } from './http/httpRespond';
+import { StaticAssetServer } from './http/staticAssets';
+import { RemoteAccessPolicy } from './remote/remoteAccessPolicy';
+import { RemotePairingApi } from './remote/remotePairingApi';
+import { CollaborationSessionApi } from './collaboration/collaborationSessionApi';
+import { AnalysisFeatureHost } from './analysis/analysisFeatureHost';
+import { AnalysisMessageRouter } from './analysis/analysisMessageRouter';
+import { DependencyGraphBridge } from './analysis/dependencyGraphBridge';
+import { HistoricalComparisonBridge } from './analysis/historicalComparisonBridge';
+import { ProjectEvolutionBridge } from './analysis/projectEvolutionBridge';
 
 /**
  * HTTP Server Configuration
  */
+/** What the host learns after removing a participant from the session. */
+export interface ParticipantRemovalOutcome {
+    removed: boolean;
+    /** True when the guest also lost their remote session (re-pairing needed). */
+    sessionRevoked: boolean;
+}
+
 export interface HttpServerConfig {
     port: number;
     host?: string;
@@ -19,6 +37,8 @@ export interface HttpServerConfig {
     enableCors?: boolean;
     allowedOrigins?: string[];
     mainFile?: string; // Optional main file to serve at root
+    extensionContext?: vscode.ExtensionContext;
+    analysisSessionId?: string;
 }
 
 /**
@@ -27,11 +47,22 @@ export interface HttpServerConfig {
  */
 export class HttpServer {
     private server: http.Server | null = null;
+    private readonly staticAssets: StaticAssetServer;
+    private readonly policy: RemoteAccessPolicy;
+    private readonly pairingApi: RemotePairingApi;
+    private readonly sessionApi: CollaborationSessionApi;
     private config: HttpServerConfig;
     private isRunning: boolean = false;
     private upgradeAttached = false;
     private broadcastSignalingServer: ScreenBroadcastSignalingServer | null = null;
     private collaborationRoomServer: CollaborationRoomServer | null = null;
+    private collaborationProfileSubscription: vscode.Disposable | null = null;
+    private readonly remoteSessionAuthority = new RemoteSessionAuthority();
+    private remotePublicUrl: string | null = null;
+    private readonly analysisHost: AnalysisFeatureHost;
+    private readonly dependencyBridge: DependencyGraphBridge;
+    private readonly historicalBridge: HistoricalComparisonBridge;
+    private readonly analysisRouter: AnalysisMessageRouter;
 
     constructor(config: HttpServerConfig) {
         // Ensure port is a number and create clean config
@@ -41,12 +72,56 @@ export class HttpServer {
         };
         
         this.config = {
-            host: '0.0.0.0',  // ✅ Listen on all network interfaces for VR/mobile access
+            host: '0.0.0.0',  //  Listen on all network interfaces for VR/mobile access
             staticRoot: path.join(__dirname, '../../../templates'),
             enableCors: true,
             allowedOrigins: ['*'],
             ...cleanConfig
         };
+
+        this.staticAssets = new StaticAssetServer({
+            staticRoot: this.config.staticRoot!,
+            mainFile: this.config.mainFile,
+            port: this.config.port,
+            host: this.config.host,
+        });
+        this.policy = new RemoteAccessPolicy(this.remoteSessionAuthority);
+        this.pairingApi = new RemotePairingApi({
+            authority: this.remoteSessionAuthority,
+            getOrigin: (req) => this.getRequestOrigin(req),
+            isRemoteRequest: (req) => this.policy.isRemoteRequest(req),
+            getRoom: () => this.collaborationRoomServer,
+        });
+        this.sessionApi = new CollaborationSessionApi({
+            port: this.config.port,
+            authority: this.remoteSessionAuthority,
+            getAnalysisAvailability: () => this.analysisHost.getAnalysisAvailability(),
+        });
+
+        // The analysis features: service ownership and lifecycle on the host,
+        // room-message and REST handling on the bridges, dispatch on the router.
+        const roomHooks = {
+            getRoom: () => this.collaborationRoomServer,
+            getRoomId: () => this.sessionApi.getCollaborationRoomId(),
+        };
+        this.analysisHost = new AnalysisFeatureHost(
+            {
+                extensionContext: this.config.extensionContext,
+                analysisSessionId: this.config.analysisSessionId,
+                staticRoot: this.config.staticRoot,
+                port: this.config.port,
+            },
+            roomHooks,
+        );
+        this.dependencyBridge = new DependencyGraphBridge(this.analysisHost, roomHooks);
+        this.historicalBridge = new HistoricalComparisonBridge(this.analysisHost);
+        this.analysisRouter = new AnalysisMessageRouter(
+            this.analysisHost,
+            this.dependencyBridge,
+            this.historicalBridge,
+            new ProjectEvolutionBridge(this.analysisHost),
+            roomHooks,
+        );
 
         console.log('SERVER: HTTP server initialized with config:', this.config);
     }
@@ -118,6 +193,14 @@ export class HttpServer {
             return;
         }
 
+        // Release the long-lived connections FIRST: server.close() waits for
+        // every socket to drain, and the sockets that never drain on their own
+        // are exactly the ones these features own (collaboration/broadcast
+        // WebSockets and open SSE responses). Disposing inside the close
+        // callback deadlocks the shutdown.
+        this.disposeRuntimeFeatures();
+        this.server.closeAllConnections();
+
         return new Promise((resolve, reject) => {
             this.server!.close((error) => {
                 if (error) {
@@ -131,6 +214,15 @@ export class HttpServer {
                 }
             });
         });
+    }
+
+    /**
+     * Drop every open socket without waiting for a graceful close.
+     */
+    public forceStop(): void {
+        this.disposeRuntimeFeatures();
+        this.server?.closeAllConnections();
+        this.isRunning = false;
     }
 
     /**
@@ -160,11 +252,79 @@ export class HttpServer {
         return `http://${this.config.host}:${this.config.port}`;
     }
 
+    public getRemoteSessionAuthority(): RemoteSessionAuthority {
+        return this.remoteSessionAuthority;
+    }
+
+    public getConnectedParticipants(): ConnectedParticipantSummary[] {
+        return this.collaborationRoomServer?.getConnectedParticipants(this.sessionApi.getCollaborationRoomId()) || [];
+    }
+
+    /**
+     * Disconnect one participant on the host's behalf. A remote guest also
+     * loses their session, so the removal cannot be undone by reloading the
+     * invitation link; local-network guests keep no session to revoke.
+     */
+    public removeParticipant(peerId: string): ParticipantRemovalOutcome {
+        if (!this.collaborationRoomServer) {
+            return { removed: false, sessionRevoked: false };
+        }
+
+        const result = this.collaborationRoomServer.removeParticipant(
+            this.sessionApi.getCollaborationRoomId(),
+            peerId,
+        );
+        const sessionRevoked = result.removed && result.remote && !!result.sessionId
+            ? this.remoteSessionAuthority.revokeSession(result.sessionId)
+            : false;
+
+        return { removed: result.removed, sessionRevoked };
+    }
+
+    public onConnectedParticipantsChanged(
+        listener: (participants: ConnectedParticipantSummary[]) => void,
+    ): () => void {
+        if (!this.collaborationRoomServer) {
+            return () => undefined;
+        }
+        return this.collaborationRoomServer.onParticipantsChanged((changedRoomId, participants) => {
+            if (changedRoomId === this.sessionApi.getCollaborationRoomId()) {
+                listener(participants);
+            }
+        });
+    }
+
+    public createInvitation(): string {
+        return this.remoteSessionAuthority.createInvitation();
+    }
+
+    public setRemotePublicUrl(publicUrl: string | null): void {
+        this.remotePublicUrl = publicUrl;
+    }
+
+    public createAuthenticatedBrowserUrl(baseUrl: string): string {
+        const profileManager = CollaborationProfileManager.getInstance();
+        if (!profileManager) {
+            return baseUrl;
+        }
+        const token = this.remoteSessionAuthority.createLocalBrowserToken(
+            profileManager.getInstallationId(),
+            profileManager.getConfiguration().profile,
+        );
+        const target = new URL('/api/remote/browser', baseUrl);
+        target.searchParams.set('token', token);
+        return target.toString();
+    }
+
     public disposeRuntimeFeatures(): void {
+        this.collaborationProfileSubscription?.dispose();
+        this.collaborationProfileSubscription = null;
         this.collaborationRoomServer?.dispose();
         this.collaborationRoomServer = null;
         this.broadcastSignalingServer?.dispose();
         this.broadcastSignalingServer = null;
+        this.remoteSessionAuthority.revokeAll();
+        this.analysisHost.dispose();
     }
 
     /**
@@ -175,13 +335,19 @@ export class HttpServer {
     public handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
         const startTime = Date.now();
         const requestUrl = req.url || '/';
+        const safeRequestUrl = new URL(requestUrl, 'http://codexr.local').pathname;
         const method = req.method || 'GET';
         
-        console.log(`SERVER: ${method} ${requestUrl} - Processing request`);
+        console.log(`SERVER: ${method} ${safeRequestUrl} - Processing request`);
+
+        if (!this.policy.isRequestAuthorized(req, requestUrl)) {
+            sendErrorResponse(res, 404, 'Resource not found');
+            return;
+        }
 
         // Add CORS headers if enabled
         if (this.config.enableCors) {
-            this.addCorsHeaders(res);
+            addCorsHeaders(res, this.config.allowedOrigins);
         }
 
         // Handle preflight requests
@@ -195,11 +361,11 @@ export class HttpServer {
         this.routeRequest(req, res, requestUrl)
             .then(() => {
                 const duration = Date.now() - startTime;
-                console.log(`SERVER: ${method} ${requestUrl} - Completed in ${duration}ms`);
+                console.log(`SERVER: ${method} ${safeRequestUrl} - Completed in ${duration}ms`);
             })
             .catch((error) => {
-                console.error(`SERVER: ${method} ${requestUrl} - Error:`, error);
-                this.sendErrorResponse(res, 500, 'Internal Server Error');
+                console.error(`SERVER: ${method} ${safeRequestUrl} - Error:`, error);
+                sendErrorResponse(res, 500, 'Internal Server Error');
             });
     }
 
@@ -216,13 +382,18 @@ export class HttpServer {
     ): Promise<void> {
         // Root path - serve main page
         if (url === '/' || url === '/index.html') {
-            await this.serveMainPage(res);
+            await this.staticAssets.serveMainPage(res);
+            return;
+        }
+
+        if (url.startsWith('/join')) {
+            this.pairingApi.servePairingPage(res, url);
             return;
         }
 
         // Health check endpoint
         if (url === '/health') {
-            this.sendJsonResponse(res, 200, {
+            sendJsonResponse(res, 200, {
                 status: 'healthy',
                 timestamp: new Date().toISOString(),
                 server: 'CodeXR HTTP Server'
@@ -243,55 +414,7 @@ export class HttpServer {
         }
 
         // Static files
-        await this.serveStaticFile(req, res, url);
-    }
-
-    /**
-     * Serve the main CodeXR page
-     * @param res - HTTP response
-     */
-    private async serveMainPage(res: http.ServerResponse): Promise<void> {
-        let mainPagePath: string;
-        
-        if (this.config.mainFile) {
-            // If a specific main file is configured, use it
-            if (path.isAbsolute(this.config.mainFile)) {
-                mainPagePath = this.config.mainFile;
-            } else {
-                mainPagePath = path.join(this.config.staticRoot!, this.config.mainFile);
-            }
-            console.log(`SERVER: Attempting to serve configured main file: ${mainPagePath}`);
-            console.log(`SERVER: Static root: ${this.config.staticRoot}`);
-            console.log(`SERVER: Main file: ${this.config.mainFile}`);
-        } else {
-            // Default to xr-visualization.html
-            mainPagePath = path.join(this.config.staticRoot!, 'xr', 'xr-visualization.html');
-            console.log(`SERVER: Serving default main file: ${mainPagePath}`);
-        }
-        
-        // Check if file exists and serve it
-        if (fs.existsSync(mainPagePath)) {
-            console.log(`SERVER: Successfully found main file, serving: ${mainPagePath}`);
-            await this.serveFile(res, mainPagePath, 'text/html');
-        } else {
-            console.error(`SERVER: Main file not found: ${mainPagePath}`);
-            console.error(`SERVER: Current working directory: ${process.cwd()}`);
-            console.error(`SERVER: Static root exists: ${fs.existsSync(this.config.staticRoot!)}`);
-            if (this.config.staticRoot) {
-                try {
-                    const files = fs.readdirSync(this.config.staticRoot);
-                    console.error(`SERVER: Files in static root: ${files.join(', ')}`);
-                } catch (e) {
-                    console.error(`SERVER: Cannot read static root directory: ${e}`);
-                }
-            }
-            
-            // Fallback to a basic HTML page
-            console.warn(`SERVER: Serving fallback HTML instead of selected file`);
-            const fallbackHtml = this.generateFallbackHtml();
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(fallbackHtml);
-        }
+        await this.staticAssets.serveStaticFile(req, res, url);
     }
 
     /**
@@ -305,11 +428,11 @@ export class HttpServer {
         res: http.ServerResponse,
         url: string
     ): Promise<void> {
-        const apiPath = url.replace('/api', '');
+        const apiPath = new URL(url, 'http://codexr.local').pathname.replace('/api', '');
 
         switch (apiPath) {
             case '/status':
-                this.sendJsonResponse(res, 200, {
+                sendJsonResponse(res, 200, {
                     server: 'CodeXR HTTP Server',
                     mode: 'HTTP',
                     port: this.config.port,
@@ -319,7 +442,7 @@ export class HttpServer {
                 break;
 
             case '/config':
-                this.sendJsonResponse(res, 200, {
+                sendJsonResponse(res, 200, {
                     mode: 'HTTP',
                     host: this.config.host,
                     port: this.config.port,
@@ -328,125 +451,57 @@ export class HttpServer {
                 break;
 
             case '/collaboration/session':
-                this.sendJsonResponse(res, 200, this.buildCollaborationSessionDescriptor());
+                await this.sessionApi.handleSessionDescriptor(req, res);
+                break;
+
+            case '/collaboration/avatar-model':
+                await this.sessionApi.serveAvatarModel(req, res);
+                break;
+
+            case '/remote/pair/request':
+                await this.pairingApi.handlePairingRequest(req, res);
+                break;
+
+            case '/remote/identity':
+                await this.pairingApi.handleBrowserIdentity(req, res);
+                break;
+
+            case '/remote/pair/confirm':
+                await this.pairingApi.handlePairingConfirmation(req, res);
+                break;
+
+            case '/remote/browser':
+                this.pairingApi.handleBrowserTokenExchange(req, res, url);
+                break;
+
+            case '/remote/profile':
+                await this.pairingApi.handleRemoteProfileUpdate(req, res);
+                break;
+
+            case '/dependency-graph/summary':
+                await this.dependencyBridge.handleDependencyGraphSummary(req, res);
+                break;
+
+            case '/historical/references':
+                await this.historicalBridge.handleHistoricalReferences(req, res);
+                break;
+
+            case '/historical/compare':
+                await this.historicalBridge.handleHistoricalCompare(req, res);
                 break;
 
             default:
-                this.sendErrorResponse(res, 404, 'API endpoint not found');
+                sendErrorResponse(res, 404, 'API endpoint not found');
         }
     }
 
-    /**
-     * Serve static files
-     * @param req - HTTP request
-     * @param res - HTTP response
-     * @param url - Request URL
-     */
-    private async serveStaticFile(
-        req: http.IncomingMessage,
-        res: http.ServerResponse,
-        url: string
-    ): Promise<void> {
-        // Parse URL to extract pathname without query string
-        const parsedUrl = parseUrl(url, true);
-        const pathname = parsedUrl.pathname || '/';
-        
-        const filePath = path.join(this.config.staticRoot!, pathname);
-        const normalizedPath = path.normalize(filePath);
-
-        console.log(`SERVER_DEBUG: Request for static file: ${url}`);
-        console.log(`SERVER_DEBUG: Parsed pathname: ${pathname}`);
-        console.log(`SERVER_DEBUG: Query string removed: ${url} -> ${pathname}`);
-        console.log(`SERVER_DEBUG: Static root: ${this.config.staticRoot}`);
-        console.log(`SERVER_DEBUG: Full file path: ${normalizedPath}`);
-        console.log(`SERVER_DEBUG: File exists: ${fs.existsSync(normalizedPath)}`);
-
-        // Security check: ensure the file is within the static root
-        if (!normalizedPath.startsWith(path.normalize(this.config.staticRoot!))) {
-            console.log(`SERVER_DEBUG: Access denied - path outside static root`);
-            this.sendErrorResponse(res, 403, 'Access denied');
-            return;
+    private getRequestOrigin(req: http.IncomingMessage): string {
+        if (this.policy.isRemoteRequest(req) && this.remotePublicUrl) {
+            return this.remotePublicUrl;
         }
-
-        if (fs.existsSync(normalizedPath) && fs.statSync(normalizedPath).isFile()) {
-            console.log(`SERVER_DEBUG: Serving file: ${normalizedPath}`);
-            await this.serveFile(res, normalizedPath);
-        } else {
-            console.log(`SERVER_DEBUG: File not found: ${normalizedPath}`);
-            // List directory contents for debugging
-            try {
-                const dirPath = path.dirname(normalizedPath);
-                const dirContents = fs.readdirSync(dirPath);
-                console.log(`SERVER_DEBUG: Directory contents of ${dirPath}:`, dirContents);
-            } catch (dirError) {
-                console.log(`SERVER_DEBUG: Could not read directory: ${dirError}`);
-            }
-            this.sendErrorResponse(res, 404, 'File not found');
-        }
-    }
-
-    /**
-     * Serve a file
-     * @param res - HTTP response
-     * @param filePath - Path to the file
-     * @param contentType - Content type (optional, will be detected)
-     */
-    private async serveFile(
-        res: http.ServerResponse,
-        filePath: string,
-        contentType?: string
-    ): Promise<void> {
-        try {
-            const content = await fs.promises.readFile(filePath);
-            const detectedContentType = contentType || this.getContentType(filePath);
-            
-            res.writeHead(200, { 'Content-Type': detectedContentType });
-            res.end(content);
-        } catch (error) {
-            console.error('SERVER: Error serving file:', error);
-            this.sendErrorResponse(res, 500, 'Error reading file');
-        }
-    }
-
-    /**
-     * Add CORS headers to response
-     * @param res - HTTP response
-     */
-    private addCorsHeaders(res: http.ServerResponse): void {
-        const allowedOrigins = this.config.allowedOrigins?.join(', ') || '*';
-        
-        res.setHeader('Access-Control-Allow-Origin', allowedOrigins);
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-    }
-
-    /**
-     * Send JSON response
-     * @param res - HTTP response
-     * @param statusCode - HTTP status code
-     * @param data - Data to send
-     */
-    private sendJsonResponse(res: http.ServerResponse, statusCode: number, data: any): void {
-        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(data, null, 2));
-    }
-
-    /**
-     * Send error response
-     * @param res - HTTP response
-     * @param statusCode - HTTP status code
-     * @param message - Error message
-     */
-    private sendErrorResponse(res: http.ServerResponse, statusCode: number, message: string): void {
-        const errorData = {
-            error: true,
-            status: statusCode,
-            message: message,
-            timestamp: new Date().toISOString()
-        };
-        
-        this.sendJsonResponse(res, statusCode, errorData);
+        const forwardedProtocol = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+        const protocol = forwardedProtocol || (this.policy.isRemoteRequest(req) ? 'https' : 'http');
+        return `${protocol}://${req.headers.host || `localhost:${this.config.port}`}`;
     }
 
     /**
@@ -481,98 +536,38 @@ export class HttpServer {
         console.log(`REQUEST_UPDATE: SSE client registration completed for ${fileUri}`);
     }
 
-    /**
-     * Get content type based on file extension
-     * @param filePath - Path to the file
-     * @returns string - Content type
-     */
-    private getContentType(filePath: string): string {
-        const ext = path.extname(filePath).toLowerCase();
-        
-        const contentTypes: Record<string, string> = {
-            '.html': 'text/html',
-            '.css': 'text/css',
-            '.js': 'application/javascript',
-            '.json': 'application/json',
-            '.png': 'image/png',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.gif': 'image/gif',
-            '.svg': 'image/svg+xml',
-            '.ico': 'image/x-icon',
-            '.txt': 'text/plain'
-        };
-        
-        return contentTypes[ext] || 'application/octet-stream';
-    }
-
-    /**
-     * Generate fallback HTML page
-     * @returns string - HTML content
-     */
-    /**
-     * Generate fallback HTML when main file is not found
-     * @returns string - HTML content
-     */
-    private generateFallbackHtml(): string {
-        return `<!DOCTYPE html>
-<html>
-<head>
-    <title>CodeXR Server - File Not Found</title>
-    <style>
-        body { font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
-        .error { background: #dc2626; color: white; padding: 15px; margin: 20px 0; }
-        .info { background: #374151; padding: 15px; margin: 10px 0; }
-    </style>
-</head>
-<body>
-    <h1>CodeXR Server - File Not Found</h1>
-    <div class="error">
-        <h3>Selected HTML File Not Found</h3>
-        <p>The HTML file you selected could not be located.</p>
-        <p><strong>Attempted File:</strong> ${this.config.mainFile || 'Not specified'}</p>
-        <p><strong>Static Root:</strong> ${this.config.staticRoot}</p>
-    </div>
-    <div class="info">
-        <h3>Server Information</h3>
-        <p><strong>Port:</strong> ${this.config.port}</p>
-        <p><strong>Host:</strong> ${this.config.host}</p>
-    </div>
-    <div class="info">
-        <h3>Troubleshooting</h3>
-        <p>1. Check that the file still exists</p>
-        <p>2. Verify file permissions</p>
-        <p>3. Try restarting the server</p>
-    </div>
-</body>
-</html>`;
-    }
-
     public attachToNodeServer(server: http.Server): void {
         if (this.upgradeAttached) {
             return;
         }
         this.upgradeAttached = true;
-        this.collaborationRoomServer = new CollaborationRoomServer(server);
-        this.broadcastSignalingServer = new ScreenBroadcastSignalingServer(server);
+        this.collaborationRoomServer = new CollaborationRoomServer(server, '/codexr-room', {
+            authorizeUpgrade: (request) => this.policy.isWebSocketAuthorized(request),
+            resolveSession: (request) => this.remoteSessionAuthority.resolveCookie(request.headers.cookie),
+            handleApplicationMessage: (messageContext, message) =>
+                this.analysisRouter.handleCollaborationMessage(messageContext, message),
+        });
+        if (this.config.analysisSessionId) {
+            this.analysisHost.publishAnalysisViewState();
+        }
+        const profileManager = CollaborationProfileManager.getInstance();
+        this.collaborationProfileSubscription = profileManager?.onDidChange((configuration) => {
+            const sessions = this.remoteSessionAuthority.updateInstallationProfile(
+                profileManager.getInstallationId(),
+                configuration.profile,
+            );
+            for (const session of sessions) {
+                this.collaborationRoomServer?.updateSessionProfile(session.sessionId, session.profile);
+            }
+        }) || null;
+        this.broadcastSignalingServer = new ScreenBroadcastSignalingServer(
+            server,
+            '/codexr-broadcast',
+            (request) => this.policy.isWebSocketAuthorized(request),
+            // Guests arriving through the tunnel cannot be reached peer-to-peer,
+            // so their media is relayed by this server instead.
+            (request) => (this.policy.isRemoteRequest(request) ? 'remote' : 'local'),
+        );
     }
 
-    private buildCollaborationSessionDescriptor(): Record<string, unknown> {
-        const fileUri = fileToServerMap.findFileByPort(this.config.port);
-        const mapping = fileUri ? fileToServerMap.getServerInfo(fileUri) : null;
-        const activeServerId = mapping?.activeServerId || `port-${this.config.port}`;
-
-        return {
-            roomId: `codexr-session:${activeServerId}`,
-            activeServerId,
-            fileUri: fileUri || null,
-            capabilities: {
-                collaboration: true,
-                presence: true,
-                media: true,
-            },
-            roomSocketPath: '/codexr-room',
-            broadcastSocketPath: '/codexr-broadcast',
-        };
-    }
 }

@@ -3,14 +3,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
-const runtimePath = path.join(
-    projectRoot,
-    'templates',
-    'components',
-    'codexr',
-    'xr-chart-debug',
-    'xrChartDebugRuntime.js',
-);
+const { requireAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
 
 class FakeClassList {
     constructor(owner) {
@@ -331,9 +324,10 @@ function withRuntime(setup) {
         },
     };
 
-    delete require.cache[require.resolve(runtimePath)];
+    // requireAssembledRuntime evaluates a fresh copy per call, so no
+    // require-cache busting is needed.
     FakeRaycaster.nextIntersections = [];
-    const runtime = require(runtimePath);
+    const runtime = requireAssembledRuntime('xr-chart-debug', 'xrChartDebugRuntime.js');
 
     try {
         return setup({ runtime, document, logs });
@@ -354,7 +348,6 @@ function withRuntime(setup) {
         } else {
             global.CodeXRChartDebug = previousChartDebug;
         }
-        delete require.cache[require.resolve(runtimePath)];
     }
 }
 

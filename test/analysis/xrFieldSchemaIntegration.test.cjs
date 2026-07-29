@@ -12,7 +12,7 @@ function readProjectFile(...segments) {
 test('Python entry point exposes schema mode for XR file and directory mappings', () => {
     const source = readProjectFile('src', 'code_analysis', 'python', 'main.py');
 
-    assert.match(source, /choices=\['livePanel', 'xr', 'schema'\]/);
+    assert.match(source, /choices=\['livePanel', 'xr', 'schema', 'dependencies'\]/);
     assert.match(source, /if args\.mode == 'schema':/);
     assert.match(source, /def execute_schema_request\(target_type\):/);
 });
@@ -88,11 +88,15 @@ test('XR schema consumers support text-only dimensions for categorical chart axe
 
     assert.match(schemaService, /if \(dataType === 'text'\)/);
     assert.match(templateProcessor, /fieldType === 'text'/);
-    assert.match(templateProcessor, /dimension\.dataType === 'text' \? textFields : anyFields/);
+    // Candidates are picked by data type, with every field as the fallback so a
+    // declared dimension is never dropped (that published charts with a missing
+    // axis, e.g. barsmap without z_axis → "invalid axis").
+    assert.match(templateProcessor, /dataType === 'text' \? textFields : anyFields/);
+    assert.match(templateProcessor, /return strictFields\.length > 0 \? strictFields : anyFields/);
     assert.match(templateProcessor, /valueRule: dimension\.valueRule/);
-    assert.match(templateCharts, /id: 'cylsmap'[\s\S]*name: 'x_axis'[\s\S]*dataType: 'text'/);
-    assert.match(templateCharts, /id: 'cylsmap'[\s\S]*name: 'z_axis'[\s\S]*dataType: 'text'/);
-    assert.match(templateCharts, /id: 'pie'[\s\S]*name: 'key'[\s\S]*dataType: 'text'/);
+    assert.match(templateCharts, /id: 'cylsmap'[\s\S]*name: 'x_axis'[\s\S]*dataType: 'any'/);
+    assert.match(templateCharts, /id: 'cylsmap'[\s\S]*name: 'z_axis'[\s\S]*dataType: 'any'/);
+    assert.match(templateCharts, /id: 'pie'[\s\S]*name: 'key'[\s\S]*dataType: 'any'/);
 });
 
 test('XR launcher validates mappings with schema-provided field types before execution', () => {
@@ -107,11 +111,14 @@ test('boats chart metadata keeps numeric-only area and height with any-valued co
     const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
     const createChart = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createChart.ts');
 
+    assert.doesNotMatch(templateCharts, /id: 'codexr-boats'/);
+
     assert.match(templateCharts, /id: 'boats'[\s\S]*name: 'area'[\s\S]*dataType: 'numeric'/);
     assert.match(templateCharts, /id: 'boats'[\s\S]*name: 'height'[\s\S]*dataType: 'numeric'/);
     assert.match(templateCharts, /id: 'boats'[\s\S]*name: 'color'[\s\S]*dataType: 'any'/);
 
-    assert.match(createChart, /name: 'area'[\s\S]*dataType: 'numeric'/);
-    assert.match(createChart, /name: 'height'[\s\S]*dataType: 'numeric'/);
-    assert.match(createChart, /name: 'color'[\s\S]*dataType: 'any'/);
+    // The duplicated boats metadata is gone: createChart resolves every chart
+    // from the canonical template list.
+    assert.doesNotMatch(createChart, /dataType:/);
+    assert.match(createChart, /chartTemplates\.find\(\(candidate\) => candidate\.id === chartId\)/);
 });

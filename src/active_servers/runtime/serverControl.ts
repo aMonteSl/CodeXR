@@ -7,6 +7,9 @@ import { sseManager } from '../../servers/runtime/sse/SSEManager';
 import { UnifiedSessionRegistry } from '../../code_analysis/engine/core/sessionRegistry';
 import { handleError, formatErrorMessage, ErrorDomain, ErrorSeverity } from '../../utils/errorHandler';
 
+/** How long a graceful shutdown may take before it is forced. */
+const STOP_TIMEOUT_MS = 4000;
+
 /**
  * Server Control
  * Runtime operations for managing active servers
@@ -81,28 +84,69 @@ export class ServerControl {
             registry.updateServerStatus(serverId, 'stopped');
 
             // Stop the actual server instance if available
+            let cleanShutdown = true;
             if (server.serverInstance && typeof server.serverInstance.stop === 'function') {
                 console.log(`ACTIVE_SERVERS:  DEBUG - Stopping server instance for ${serverId}`);
-                await server.serverInstance.stop();
-                console.log(`ACTIVE_SERVERS:  Server instance stopped for ${serverId}`);
+                cleanShutdown = await this.stopInstanceOrForce(serverId, server.serverInstance);
             } else {
                 console.log(`ACTIVE_SERVERS:  No server instance or stop method for ${serverId}`);
             }
 
-            // Remove from registry
-            console.log(`ACTIVE_SERVERS:  DEBUG - Removing server from registry`);
-            registry.unregisterServer(serverId);
+            console.log(`ACTIVE_SERVERS:  Stopped server ${serverId} (${server.url}), clean: ${cleanShutdown}`);
+            if (cleanShutdown) {
+                vscode.window.showInformationMessage(`Server stopped: ${server.url}`);
+            }
 
-            console.log(`ACTIVE_SERVERS:  Successfully stopped server ${serverId} (${server.url})`);
-            vscode.window.showInformationMessage(`Server stopped: ${server.url}`);
-            
-            return true;
+            return cleanShutdown;
 
         } catch (error) {
-            // Update status to error
-            registry.updateServerStatus(serverId, 'error');
             handleError(ErrorDomain.ActiveServers, `Failed to stop server ${server.url}`, error, ErrorSeverity.User);
             return false;
+        } finally {
+            // The row always leaves the list: a runtime that refuses to shut
+            // down must never leave a zombie entry behind.
+            console.log(`ACTIVE_SERVERS:  DEBUG - Removing server from registry`);
+            registry.unregisterServer(serverId);
+        }
+    }
+
+    /**
+     * Await the instance's graceful stop, falling back to a forced socket close
+     * if it hangs or fails. Returns false when the shutdown was not clean.
+     */
+    private static async stopInstanceOrForce(serverId: string, instance: any): Promise<boolean> {
+        let timer: NodeJS.Timeout | undefined;
+        try {
+            await Promise.race([
+                Promise.resolve(instance.stop()),
+                new Promise((_resolve, reject) => {
+                    timer = setTimeout(
+                        () => reject(new Error(`Shutdown timed out after ${STOP_TIMEOUT_MS} ms`)),
+                        STOP_TIMEOUT_MS,
+                    );
+                }),
+            ]);
+            console.log(`ACTIVE_SERVERS:  Server instance stopped for ${serverId}`);
+            return true;
+        } catch (error) {
+            const reason = error instanceof Error ? error.message : String(error);
+            console.error(`ACTIVE_SERVERS:  Graceful stop failed for ${serverId}: ${reason}`);
+            if (typeof instance.forceStop === 'function') {
+                try {
+                    instance.forceStop();
+                    console.log(`ACTIVE_SERVERS:  Forced shutdown for ${serverId}`);
+                } catch (forceError) {
+                    console.error(`ACTIVE_SERVERS:  Forced shutdown failed for ${serverId}:`, forceError);
+                }
+            }
+            vscode.window.showWarningMessage(
+                `Server removed from the list, but its runtime did not shut down cleanly: ${reason}`,
+            );
+            return false;
+        } finally {
+            if (timer) {
+                clearTimeout(timer);
+            }
         }
     }
 

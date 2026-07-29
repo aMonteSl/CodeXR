@@ -1,0 +1,15 @@
+{
+  "output": "xrChartMappingUiRuntime.js",
+  "parts": [
+    "configAndLabels.js",
+    "placementGeometry.js",
+    "chartDiscovery.js",
+    "mappingProfiles.js",
+    "chartDataSlice.js",
+    "statusAndSharedState.js",
+    "pendingValidation.js",
+    "dimensionAndViews.js",
+    "panelUi.js",
+    "stateAndBootstrap.js"
+  ]
+}

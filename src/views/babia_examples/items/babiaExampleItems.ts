@@ -9,7 +9,7 @@ export class BabiaExampleTreeItem extends vscode.TreeItem {
     constructor(
         label: string,
         collapsibleState: vscode.TreeItemCollapsibleState,
-        public readonly babiaItemType: 'example-item' | 'no-examples' | 'loading' | 'error',
+        public readonly babiaItemType: 'example-item' | 'no-examples' | 'loading' | 'error' | 'library-info',
         command?: vscode.Command,
         iconPath?: vscode.ThemeIcon | vscode.Uri | { light: vscode.Uri; dark: vscode.Uri },
         tooltip?: string,
@@ -49,6 +49,25 @@ export class BabiaExampleItemFactory {
     /**
      * Create "Error loading examples" message item
      */
+    /**
+     * Credits row for the libraries the example scenes are built on.
+     */
+    static createLibraryInfoItem(): BabiaExampleTreeItem {
+        return new BabiaExampleTreeItem(
+            'About BabiaXR',
+            vscode.TreeItemCollapsibleState.None,
+            'library-info',
+            {
+                command: 'codeXR.babiaExamples.showLibraryInfo',
+                title: 'Show BabiaXR credits and license',
+            },
+            new vscode.ThemeIcon('info'),
+            'These examples are built with BabiaXR. Click for credits and licenses.',
+            'Credits & license',
+            'babia-library-info',
+        );
+    }
+
     static createErrorItem(): BabiaExampleTreeItem {
         console.log('BABIA_EXAMPLES: Creating error loading examples item');
         

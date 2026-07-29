@@ -130,7 +130,14 @@ export class ServerItemFactory {
     private static getServerDescription(server: ActiveServer): string {
         const mode = server.launchMode === 'browser' ? 'Browser' : 'Panel';
         const status = server.status === 'running' ? '' : ` (${server.status})`;
-        return `${mode}${status}`;
+        const remote = server.remoteAccess?.status === 'shared'
+            ? ' · Remoto'
+            : server.remoteAccess?.status === 'starting'
+                ? ' · Publicando...'
+                : server.remoteAccess?.status === 'error'
+                    ? ' · Error remoto'
+                    : '';
+        return `${mode}${status}${remote}`;
     }
 
     /**
@@ -183,6 +190,15 @@ export class ServerItemFactory {
         tooltip += `Status: ${server.status}\\n`;
         tooltip += `Mode: ${server.certMode}/${server.launchMode}\\n`;
         tooltip += `Uptime: ${uptime}\\n`;
+        if (server.remoteAccess) {
+            tooltip += `Remote access: ${server.remoteAccess.status}\\n`;
+            if (server.remoteAccess.pendingRequests > 0) {
+                tooltip += `Pending requests: ${server.remoteAccess.pendingRequests}\\n`;
+            }
+            if (server.remoteAccess.error) {
+                tooltip += `Remote error: ${server.remoteAccess.error}\\n`;
+            }
+        }
         
         if (server.htmlFile) {
             const fileName = server.htmlFile.split('/').pop() || server.htmlFile;
