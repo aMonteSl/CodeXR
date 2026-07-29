@@ -12,51 +12,61 @@ import { CODEXR_BRAND_MARK_SVG } from './brandMark';
  * all fail. Keep every addition self-contained.
  */
 
+/**
+ * Design tokens mirrored from the product site (same names, same values), so
+ * the first CodeXR screen a guest ever sees belongs to the same family as the
+ * marketing pages: flat slate surfaces, a muted steel-blue accent carrying
+ * DARK text, hairline edges and a single soft card shadow. No glass, no neon
+ * glow, no gradient text — the previous look predates the site redesign.
+ */
 const PAGE_STYLES = `
+:root{
+  --surface:#0e141b;
+  --surface-raised:#151d26;
+  --surface-sunken:#0a0f15;
+  --ink:#e6ebf0;
+  --ink-muted:#a3b1bf;
+  --ink-faint:#66778a;
+  --edge:#26313e;
+  --accent:#7ba7cc;
+  --accent-strong:#9dbfda;
+  --on-accent:#0e141b;
+  --shadow-card:0 1px 2px rgb(0 0 0 / .4),0 10px 30px -16px rgb(0 0 0 / .5);
+}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
   margin:0;
-  background:#000;
-  color:#d1d5db;
-  font-family:Inter,Poppins,Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;
+  /* The site's hero gradient: raised surface fading into the page surface. */
+  background:var(--surface) linear-gradient(var(--surface-raised),var(--surface) 60%) no-repeat;
+  color:var(--ink);
+  font-family:"Inter Variable",Inter,Poppins,Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;
   font-size:16px;
-  line-height:1.55;
+  line-height:1.6;
   display:grid;
   place-items:center;
   padding:32px 16px;
   -webkit-font-smoothing:antialiased;
 }
-/* Ambient background, mirroring the site's hero: a soft blue halo at the top
-   and two heavily blurred colour orbs. */
-.glow-top,.orb{position:fixed;pointer-events:none;z-index:0}
-.glow-top{inset:0;background:radial-gradient(circle at 50% 0%,rgba(0,170,255,.10),transparent 38%)}
-.orb{border-radius:9999px;filter:blur(64px)}
-.orb-blue{right:-60px;top:80px;width:320px;height:320px;background:rgba(0,170,255,.10)}
-.orb-purple{left:-70px;bottom:-40px;width:288px;height:288px;background:rgba(192,132,252,.08)}
 
-main{position:relative;z-index:1;width:min(460px,100%)}
+main{position:relative;width:min(460px,100%)}
 .brand{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:22px}
-.brand-mark{width:30px;height:30px;color:#00aaff;flex:none}
-.wordmark{
-  font-size:1.35rem;font-weight:700;letter-spacing:-.01em;
-  background:linear-gradient(to right,#fff,#00aaff);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-}
+.brand-mark{width:28px;height:28px;color:var(--ink);flex:none}
+/* "Code-" in ink, "XR" in accent: the site's wordmark, no gradient. */
+.wordmark{font-size:1.35rem;font-weight:800;letter-spacing:-.025em;color:var(--ink)}
+.wordmark .wordmark-accent{color:var(--accent)}
 .card{
-  background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.1);
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
+  background:var(--surface-raised);
+  border:1px solid var(--edge);
   border-radius:12px;
   padding:28px 26px;
+  box-shadow:var(--shadow-card);
 }
-h1{margin:0 0 6px;font-size:1.5rem;font-weight:700;color:#fff;letter-spacing:-.01em}
-.lede{margin:0 0 22px;color:#9ca3af;font-size:.94rem}
+h1{margin:0 0 6px;font-size:1.5rem;font-weight:700;color:var(--ink);letter-spacing:-.025em}
+.lede{margin:0 0 22px;color:var(--ink-muted);font-size:.94rem}
 .section-label{
-  margin:0 0 10px;font-size:.72rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-  background:linear-gradient(to right,#00aaff,#c084fc);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
+  margin:0 0 10px;font-size:.7rem;font-weight:600;letter-spacing:.025em;text-transform:uppercase;
+  color:var(--accent);
 }
 
 fieldset{border:0;padding:0;margin:0 0 16px}
@@ -64,65 +74,63 @@ legend{padding:0}
 .choice{
   display:flex;align-items:center;gap:10px;
   padding:11px 13px;margin-bottom:8px;cursor:pointer;
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.1);
-  border-radius:10px;
-  color:#e5e7eb;font-size:.94rem;
-  transition:border-color .15s,background .15s;
+  background:var(--surface-sunken);
+  border:1px solid var(--edge);
+  border-radius:8px;
+  color:var(--ink-muted);font-size:.94rem;
+  transition:border-color .15s,background .15s,color .15s;
 }
-.choice:hover{border-color:rgba(0,170,255,.45)}
-.choice:has(input:checked){border-color:#00aaff;background:rgba(0,170,255,.09);color:#fff}
-.choice input{width:auto;margin:0;accent-color:#00aaff;flex:none}
+.choice:hover{border-color:var(--accent)}
+.choice:has(input:checked){border-color:var(--accent);background:rgb(123 167 204 / .1);color:var(--ink)}
+.choice input{width:auto;margin:0;accent-color:var(--accent);flex:none}
 
-label.field{display:block;margin:0 0 6px;font-size:.82rem;font-weight:600;color:#9ca3af}
+label.field{display:block;margin:0 0 6px;font-size:.82rem;font-weight:600;color:var(--ink-muted)}
 input[type=text],input:not([type]),#name,#code{
   width:100%;padding:12px 14px;
-  background:rgba(0,0,0,.45);
-  border:1px solid rgba(255,255,255,.14);
+  background:var(--surface-sunken);
+  border:1px solid var(--edge);
   border-radius:8px;
-  color:#fff;font-size:1rem;font-family:inherit;
+  color:var(--ink);font-size:1rem;font-family:inherit;
   transition:border-color .15s,box-shadow .15s;
 }
-input::placeholder{color:#6b7280}
-input:focus-visible{outline:none;border-color:#00aaff;box-shadow:0 0 0 3px rgba(0,170,255,.25)}
+input::placeholder{color:var(--ink-faint)}
+input:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgb(123 167 204 / .25)}
 input:disabled{opacity:.55;cursor:not-allowed}
 #code{
   margin-top:4px;
   text-align:center;
   font-size:1.6rem;font-weight:700;
   letter-spacing:.42em;text-indent:.42em;
+  color:var(--ink);
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
-.hint{margin:8px 0 0;color:#9ca3af;font-size:.85rem}
+.hint{margin:8px 0 0;color:var(--ink-muted);font-size:.85rem}
 
 button{
-  width:100%;margin-top:16px;padding:12px 24px;
-  background:#00aaff;color:#fff;
+  width:100%;min-height:44px;margin-top:16px;padding:12px 24px;
+  background:var(--accent);color:var(--on-accent);
   border:0;border-radius:8px;
   font-family:inherit;font-size:1rem;font-weight:600;
   cursor:pointer;
-  box-shadow:0 0 20px rgba(0,170,255,.3);
-  transition:background .15s,box-shadow .15s,transform .05s;
+  transition:background .15s,transform .05s;
 }
-button:hover:not(:disabled){background:#0096e0;box-shadow:0 0 26px rgba(0,170,255,.45)}
+button:hover:not(:disabled){background:var(--accent-strong)}
 button:active:not(:disabled){transform:translateY(1px)}
-button:focus-visible{outline:2px solid #67e8f9;outline-offset:2px}
-button:disabled{opacity:.5;box-shadow:none;cursor:not-allowed}
+button:focus-visible{outline:2px solid var(--accent-strong);outline-offset:2px}
+button:disabled{opacity:.45;cursor:not-allowed}
 
-#status{margin:16px 0 0;min-height:1.2em;font-size:.9rem;color:#9ca3af;text-align:center}
+#status{margin:16px 0 0;min-height:1.2em;font-size:.9rem;color:var(--ink-muted);text-align:center}
 #status.error{
-  color:#fca5a5;text-align:left;
-  background:rgba(248,113,113,.12);
-  border:1px solid rgba(248,113,113,.3);
+  color:#f0a9a9;text-align:left;
+  background:rgb(220 120 120 / .1);
+  border:1px solid rgb(220 120 120 / .3);
   border-radius:8px;padding:10px 12px;
 }
 #code,#confirm{display:none}
-.footnote{margin:18px 0 0;text-align:center;color:#6b7280;font-size:.78rem}
+.footnote{margin:18px 0 0;text-align:center;color:var(--ink-faint);font-size:.78rem}
 
 @media (max-width:480px){
   .card{padding:22px 18px}
-  .orb-blue{width:220px;height:220px}
-  .orb-purple{width:200px;height:200px}
   #code{font-size:1.35rem;letter-spacing:.3em;text-indent:.3em}
 }
 `;
@@ -138,11 +146,8 @@ function shell(title: string, body: string, script = ''): string {
 <style>${PAGE_STYLES}</style>
 </head>
 <body>
-<div class="glow-top"></div>
-<div class="orb orb-blue"></div>
-<div class="orb orb-purple"></div>
 <main>
-<div class="brand">${CODEXR_BRAND_MARK_SVG}<span class="wordmark">Code-XR</span></div>
+<div class="brand">${CODEXR_BRAND_MARK_SVG}<span class="wordmark">Code-<span class="wordmark-accent">XR</span></span></div>
 ${body}
 </main>
 ${script ? `<script>${script}</script>` : ''}

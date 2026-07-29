@@ -159,14 +159,14 @@ XR, not just how it looks. JPEG ~1600 px, 115-152 KB each.
 
 The two sides of the joining flow, used by the README's cross-network tutorial. One folder per role, because every shot belongs to exactly one of them.
 
-**`invited_user/`** is what the person joining sees in their browser. Rendered from the **real production page** (`src/servers/runtime/remote/pairingPage.ts`, compiled and served as-is, so the HTML, CSS and client script are exactly what a guest gets) with only the three endpoints it calls stubbed: a faithful capture would otherwise need a live Cloudflare tunnel and a second machine. The alias and the code shown are therefore invented, and nothing else is. Captured at 640 px wide, `deviceScaleFactor: 2`, dark scheme.
+**`invited_user/`** is what the person joining sees in their browser. Rendered from the **real production page** (`src/servers/runtime/remote/pairingPage.ts`, compiled and served as-is, so the HTML, CSS and client script are exactly what a guest gets) with only the three endpoints it calls stubbed: a faithful capture would otherwise need a live Cloudflare tunnel and a second machine. The alias and the code shown are therefore invented, and nothing else is. Captured at 640 px wide, `deviceScaleFactor: 2`, dark scheme. Retaken after the page adopted the product site's design tokens (slate surfaces, steel-blue accent, no glass or neon glow), so **whenever that styling changes these four must be retaken together** with the script that produced them.
 
 | File | Size | What it shows |
 |---|---|---|
-| `remote-join-identity.png` | 169 KB | Step 1 of the join page: continue as anonymous with the alias CodeXR reserved, or use a custom name, then *Request access* |
-| `remote-join-code.png` | 112 KB | Step 2: the six-digit field and *Connect*, with "Request sent. Enter the code the host gives you." |
-| `remote-join-rejected.png` | 117 KB | A burnt code: the field is cleared and the page answers "The code is not valid." |
-| `remote-join-expired.png` | 70 KB | The page an expired or already-used invitation link lands on |
+| `remote-join-identity.png` | 82 KB | Step 1 of the join page: continue as anonymous with the alias CodeXR reserved, or use a custom name, then *Request access* |
+| `remote-join-code.png` | 54 KB | Step 2: the six-digit field and *Connect*, with "Request sent. Enter the code the host gives you." |
+| `remote-join-rejected.png` | 51 KB | A burnt code: the field is cleared and the page answers "The code is not valid." |
+| `remote-join-expired.png` | 38 KB | The page an expired or already-used invitation link lands on |
 
 **`host_user/`** is what the person sharing sees in VS Code. Taken by hand from a **live session** (Playwright drives web pages, not the VS Code window), which is why these are tight crops of the real sidebar and its notifications rather than framed shots.
 

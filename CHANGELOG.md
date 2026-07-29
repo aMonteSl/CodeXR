@@ -75,6 +75,7 @@ A guide screen lives inside the scene, so the answer to *what am I looking at* n
 
 #### Changed
 
+- **The guest join pages wear the product site's design.** The pairing and invitation screens now use the same tokens as the website (slate surfaces, hairline edges, the muted steel-blue accent carrying dark text, one soft card shadow) instead of the older black-and-neon look with glass blur and gradient text. Nothing about how joining works changed.
 - **The analysis controller switches between analyses.** The in-scene selector routes to each mode's own view and mapping context, so moving between the classic table, the dependency graph, a comparison and the movie keeps each one's state instead of resetting it. Leaving and returning to an analysis restores what you had.
 - **The table (pedestal) serves every analysis type**: the single chart, the comparator's dual table, the graph and the movie's full-size chart, each with its own containment so charts stay inside the useful area.
 - **The chart type can be changed live** from CodeXR Field Mapping, applying that chart's own default axes; a change that produces invalid geometry reverts itself with a message.
