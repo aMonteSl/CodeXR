@@ -106,7 +106,7 @@ Where the comparison shows two photographs, Project Evolution plays the movie: t
 | ![A frame of the movie on the amber table, stamped with the commit hash and date it belongs to](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/analysis/xr/project_evolution/project_evolution_example_1.png) | ![The player panel: Auto, Range and Manual timeline modes, the frame list, Generate movie, transport buttons and playback speeds](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/controllers/xr/project_evolution/project_evolution_controller.png) |
 | **The result**: every frame is a real analysis, stamped with its commit and date | **The panel**: build the timeline, generate the movie, then play, step and change speed |
 
-▶ **[Watch the full demo on YouTube](https://youtu.be/Qs1OHWCqXSs)**
+▶ **[Watch the full demo on YouTube](https://youtu.be/QDN8tcKx60w)**
 
 ### And the rest of 1.2.0
 
@@ -190,8 +190,8 @@ Four narrated videos, one per analysis:
 |:---:|:---:|
 | [![Classic analysis walkthrough](https://img.youtube.com/vi/76p1ibPaf3I/hqdefault.jpg)](https://youtu.be/76p1ibPaf3I) | [![Dependency graph walkthrough](https://img.youtube.com/vi/42hIQTUD0-g/hqdefault.jpg)](https://youtu.be/42hIQTUD0-g) |
 | **[Classic analysis](https://youtu.be/76p1ibPaf3I)**: the 3D city, Field Mapping and live updates | **[Dependency graph](https://youtu.be/42hIQTUD0-g)**: layouts, node cards, filters and flow |
-| [![Historical comparison walkthrough](https://img.youtube.com/vi/b37qDCQeZg0/hqdefault.jpg)](https://youtu.be/b37qDCQeZg0) | [![Project Evolution walkthrough](https://img.youtube.com/vi/Qs1OHWCqXSs/hqdefault.jpg)](https://youtu.be/Qs1OHWCqXSs) |
-| **[Historical comparison](https://youtu.be/b37qDCQeZg0)**: two revisions, one table | **[Project Evolution](https://youtu.be/Qs1OHWCqXSs)**: your repository as a film |
+| [![Historical comparison walkthrough](https://img.youtube.com/vi/b37qDCQeZg0/hqdefault.jpg)](https://youtu.be/b37qDCQeZg0) | [![Project Evolution walkthrough](https://img.youtube.com/vi/QDN8tcKx60w/hqdefault.jpg)](https://youtu.be/QDN8tcKx60w) |
+| **[Historical comparison](https://youtu.be/b37qDCQeZg0)**: two revisions, one table | **[Project Evolution](https://youtu.be/QDN8tcKx60w)**: your repository as a film |
 
 ## Tested in real XR sessions
 

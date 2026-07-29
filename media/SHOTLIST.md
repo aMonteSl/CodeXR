@@ -129,13 +129,15 @@ All recorded at 1920×1080. The raw takes are near-lossless masters — they are
 | `normal/` | [`youtu.be/76p1ibPaf3I`](https://youtu.be/76p1ibPaf3I) (172 MB) | `normal_analysis_demo.mp4` (168 MB) | 1:16 | `normal_analysis_demo.gif` — 3.90 MB, 720×406, 9.5 s |
 | `historical/` | [`youtu.be/b37qDCQeZg0`](https://youtu.be/b37qDCQeZg0) (175 MB) | `historical_comparison_demo.mp4` (169 MB) | 1:19 | `historical_comparison_demo.gif` — 4.07 MB, 660×372, 9.8 s |
 | `dependency/` | [`youtu.be/42hIQTUD0-g`](https://youtu.be/42hIQTUD0-g) (219 MB) | `dependency_analysis_demo.mp4` (214 MB) | 1:48 | `dependency_analysis_demo.gif` — 4.25 MB, 656×370, 13.5 s |
-| `project_evolution/` | [`youtu.be/Qs1OHWCqXSs`](https://youtu.be/Qs1OHWCqXSs) (439 MB) | `project_evolution_demo.mp4` (417 MB) | 4:11 | `project_evolution_demo.gif` — 4.34 MB, 530×298, 31.4 s |
+| `project_evolution/` | [`youtu.be/QDN8tcKx60w`](https://youtu.be/QDN8tcKx60w) (314 MB) | `project_evolution_demo.mp4` (209 MB) | 3:02 | `project_evolution_demo.gif` — 4.02 MB, 600×308, 22.7 s |
 
 The `<subject>_explanation.mp4` files are uploaded (links above); like the demos they are over GitHub's 100 MB limit and stay out of git.
 
 **The `.mp4` files are not in git** (`.gitignore`: `media/**/*.mp4`). Each one is 168-439 MB, and GitHub refuses any file over 100 MB, so the masters could not be pushed even if we wanted them to be — they live on the recording machine, and what leaves is the GIF beside them plus the narrated cut on YouTube. If they ever need to be in the repo, that means Git LFS, deliberately.
 
 The voice-over scripts for the four narrated takes were written per video and follow the same five-to-eight block structure: what it is · what you see · what you control · what else it does · closing.
+
+**Project evolution was re-recorded for the improved analysis** (2026-07-29): new raw take, new narrated cut on a new YouTube id, and the GIF regenerated from the new master with the same ×8 recipe. Its script is the one script kept in the repo, `project_evolution/project_evolution_voiceover.md`, written as continuous narration rather than blocks because it doubles as the subtitle track. The shorter take (3:02 against the previous 4:11) is what let this GIF go wider than the old one at the same budget: time is fixed, pixels are the slack.
 
 ### XR experiences (`v1.2.0/xr_experiences/`)
 
