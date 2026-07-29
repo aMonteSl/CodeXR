@@ -473,7 +473,7 @@ Access settings directly from the tree view or VS Code preferences:
 - **Debounce Timing**: Adjust how quickly analysis responds to code changes
 - **Auto-analysis**: Enable/disable automatic re-analysis on file save
 - **File Filtering**: Configure which file types to include/exclude from analysis
-- **Cross-network Connections**: Enable or disable remote access on your servers (on by default; disabling stops every tunnel)
+- **Cross-network Connections**: Enable or disable remote access on your servers (on by default; disabling stops every tunnel and removes the `cloudflared` copy CodeXR downloaded). Declining the one-time `cloudflared` download turns this off too, so you are asked again only once you re-enable it.
 
 ### XR Environment Settings
 Customize your scene:

@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import { handleHttpModeClick, handlePortClick, handleAutoOpenClick, handleOpenModeClick } from '../views/interactions/handleConfigurationClicks';
 import { MultiServerLauncher } from '../runtime/multiServerLauncher';
 import { ServerSettingsManager, ServerSettings } from '../storage/serverSettingsManager';
-import { RemoteAccessManager } from '../../remote_access';
+import { CloudflaredBinaryManager, RemoteAccessManager } from '../../remote_access';
 
 /**
  * Current server configuration state (legacy)
@@ -222,6 +222,11 @@ export async function configureRemoteAccess(): Promise<void> {
         void RemoteAccessManager.getInstance()?.startAllEligible();
     } else {
         await RemoteAccessManager.getInstance()?.stopAll();
+        // An explicit disable uninstalls the component CodeXR downloaded for
+        // this: nothing lingers in global storage once cross-network is off.
+        // A system-wide cloudflared on PATH is never touched — it is not
+        // CodeXR's to remove.
+        await new CloudflaredBinaryManager(extensionContext).uninstallManagedBinary();
     }
 }
 

@@ -218,3 +218,40 @@ test('participant removal is server-authoritative and revokes remote sessions', 
     assert.match(httpServer, /this\.remoteSessionAuthority\.revokeSession\(result\.sessionId\)/);
     assert.match(authority, /public revokeSession\(sessionId: string\): boolean/);
 });
+
+test('disabling cross-network connections uninstalls the managed cloudflared download', () => {
+    const binaryManager = readProjectFile('src', 'remote_access', 'services', 'cloudflaredBinaryManager.ts');
+    const serverCommands = readProjectFile('src', 'servers', 'commands', 'serverCommands.ts');
+
+    // The manager owns exactly the managed download, never a system binary
+    // found on PATH: uninstall only removes CodeXR's own storage directory.
+    assert.match(binaryManager, /public async uninstallManagedBinary\(\): Promise<void> \{/);
+    assert.match(binaryManager, /fs\.promises\.rm\(this\.binaryDirectory, \{ recursive: true, force: true \}\)/);
+
+    // Choosing "Disabled" in Server Configuration stops sharing AND removes
+    // the binary, so nothing CodeXR downloaded lingers once the capability
+    // is off.
+    const disabledBranchIndex = serverCommands.indexOf('await RemoteAccessManager.getInstance()?.stopAll();');
+    const uninstallIndex = serverCommands.indexOf('uninstallManagedBinary()');
+    assert.ok(disabledBranchIndex > -1 && uninstallIndex > -1 && disabledBranchIndex < uninstallIndex,
+        'uninstall must run in the disabled branch, after stopAll');
+    assert.match(serverCommands, /new CloudflaredBinaryManager\(extensionContext\)\.uninstallManagedBinary\(\)/);
+});
+
+test('declining the cloudflared download turns cross-network off instead of leaving it silently broken', () => {
+    const remoteManager = readProjectFile('src', 'remote_access', 'services', 'remoteAccessManager.ts');
+
+    const resolveIndex = remoteManager.indexOf('const binaryPath = await this.binaryManager.resolveBinary(true);');
+    const disableIndex = remoteManager.indexOf(
+        'remoteAccess: { ...settings.getServerSettings().remoteAccess, enabled: false }',
+    );
+    const messageIndex = remoteManager.indexOf('Cross-network connections were turned off');
+    assert.ok(resolveIndex > -1 && disableIndex > -1 && messageIndex > -1
+        && resolveIndex < disableIndex && disableIndex < messageIndex,
+        'a declined download must persist enabled: false and inform the user, in that order');
+
+    // Re-enabling always goes through startAllEligible, which resets the
+    // in-process suppression flag and retries — offering the download again
+    // (consent was never sealed on decline, so the modal reappears).
+    assert.match(remoteManager, /public async startAllEligible\(\): Promise<void> \{\s*this\.autoStartSuppressed = false;/);
+});

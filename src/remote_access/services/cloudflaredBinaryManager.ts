@@ -88,6 +88,17 @@ export class CloudflaredBinaryManager {
         return ASSETS[`${process.platform}-${process.arch}`] || null;
     }
 
+    /**
+     * Removes CodeXR's own managed download when the user disables
+     * cross-network connections. Never touches a system-wide `cloudflared`
+     * found on PATH: that installation is not CodeXR's to remove. A later
+     * re-enable re-downloads if needed; prior consent still stands, so that
+     * redownload proceeds without asking again.
+     */
+    public async uninstallManagedBinary(): Promise<void> {
+        await fs.promises.rm(this.binaryDirectory, { recursive: true, force: true });
+    }
+
     private async findSystemBinary(): Promise<string | null> {
         const executable = process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared';
         const candidates = String(process.env.PATH || '')

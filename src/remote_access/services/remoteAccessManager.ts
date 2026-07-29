@@ -90,6 +90,18 @@ export class RemoteAccessManager implements vscode.Disposable {
         const remoteServer = this.asRemoteCapableServer(server);
         const binaryPath = await this.binaryManager.resolveBinary(true);
         if (!binaryPath) {
+            // Declining the cloudflared download means "not right now": treat
+            // it the same as an explicit disable, so the Server Configuration
+            // row reflects reality instead of sitting on a silently broken
+            // Enabled state. Re-enabling later (which calls startAllEligible)
+            // offers the download again.
+            await settings.updateServerSettings({
+                remoteAccess: { ...settings.getServerSettings().remoteAccess, enabled: false },
+            });
+            void vscode.window.showInformationMessage(
+                'Cross-network connections were turned off: cloudflared was not installed. '
+                + 'Re-enable it in Server Configuration to be asked again.',
+            );
             return { ...DEFAULT_REMOTE_ACCESS_STATE };
         }
 
