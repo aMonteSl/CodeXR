@@ -18,6 +18,12 @@ function relativeLuminance(hex) {
     return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
 }
 
+/** WCAG contrast ratio between two sRGB hex colours, from 1:1 to 21:1. */
+function contrastRatio(a, b) {
+    const [lighter, darker] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+    return (lighter + 0.05) / (darker + 0.05);
+}
+
 test('the store one-liner survives being truncated on the listing card', () => {
     const { description } = packageJson;
 
@@ -47,21 +53,18 @@ test('the gallery banner declares the theme its own colour needs', () => {
     assert.ok(['dark', 'light'].includes(banner.theme));
 
     // The Marketplace draws the header text from the theme alone: it never
-    // inspects the colour. Declaring the wrong one, or picking a colour with no
-    // clear answer, is how the title ends up illegible on its own background.
-    const luminance = relativeLuminance(banner.color);
+    // inspects the colour. So the question is not "is this colour dark" but
+    // "does the text this theme forces on us actually read against it", which
+    // is a contrast ratio, not a brightness. A mid-slate can look dark and
+    // still leave white text under the 4.5:1 floor.
+    const textColour = banner.theme === 'dark' ? '#ffffff' : '#000000';
+    const ratio = contrastRatio(banner.color, textColour);
 
-    if (banner.theme === 'dark') {
-        assert.ok(
-            luminance < 0.35,
-            `theme "dark" wants light text, so the colour must be dark; luminance is ${luminance.toFixed(2)}`,
-        );
-    } else {
-        assert.ok(
-            luminance > 0.6,
-            `theme "light" wants dark text, so the colour must be light; luminance is ${luminance.toFixed(2)}`,
-        );
-    }
+    assert.ok(
+        ratio >= 4.5,
+        `theme "${banner.theme}" puts ${textColour} text on ${banner.color}, `
+        + `which is ${ratio.toFixed(2)}:1; WCAG AA needs 4.5:1`,
+    );
 });
 
 test('the listing icon is a file that actually ships', () => {
