@@ -35,6 +35,9 @@ const ASSETS: Record<string, CloudflaredAsset> = {
     },
 };
 
+/** Sealed after the user accepts the download modal once. */
+const CLOUDFLARED_CONSENT_KEY = 'codexr.cloudflaredDownloadConsented';
+
 export class CloudflaredBinaryManager {
     private readonly binaryDirectory: string;
 
@@ -62,13 +65,20 @@ export class CloudflaredBinaryManager {
             return null;
         }
 
-        const answer = await vscode.window.showInformationMessage(
-            `CodeXR needs cloudflared ${CLOUDFLARED_VERSION} (${asset.sizeLabel}) to create the temporary link. It is downloaded once from GitHub/Cloudflare, verified with SHA-256 and stored in global storage. License: Apache-2.0.`,
-            { modal: true },
-            'Download cloudflared',
-        );
-        if (answer !== 'Download cloudflared') {
-            return null;
+        // The consent modal appears once per installation: accepting it is
+        // remembered, so later downloads (a missing binary, a version bump)
+        // proceed directly with just the progress notification. Declining
+        // never seals the marker, so the question comes back next time.
+        if (!this.context.globalState.get<boolean>(CLOUDFLARED_CONSENT_KEY)) {
+            const answer = await vscode.window.showInformationMessage(
+                `CodeXR needs cloudflared ${CLOUDFLARED_VERSION} (${asset.sizeLabel}) to create the temporary link. It is downloaded once from GitHub/Cloudflare, verified with SHA-256 and stored in global storage. License: Apache-2.0.`,
+                { modal: true },
+                'Download cloudflared',
+            );
+            if (answer !== 'Download cloudflared') {
+                return null;
+            }
+            await this.context.globalState.update(CLOUDFLARED_CONSENT_KEY, true);
         }
         await this.download(asset, managedPath);
         return managedPath;
@@ -121,7 +131,7 @@ export class CloudflaredBinaryManager {
         try {
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: `Descargando cloudflared ${CLOUDFLARED_VERSION}`,
+                title: `Downloading cloudflared ${CLOUDFLARED_VERSION}`,
                 cancellable: false,
             }, async (progress) => {
                 let reported = 0;

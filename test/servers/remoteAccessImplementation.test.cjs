@@ -9,13 +9,39 @@ function readProjectFile(...parts) {
     return fs.readFileSync(path.join(projectRoot, ...parts), 'utf8');
 }
 
-test('remote access defaults to disabled and is exposed in server configuration', () => {
+test('remote access defaults to enabled, with a one-shot migration for older settings files', () => {
     const settings = readProjectFile('src', 'servers', 'storage', 'serverSettingsManager.ts');
+    const model = readProjectFile('src', 'remote_access', 'model', 'remoteAccessModel.ts');
     const items = readProjectFile('src', 'views', 'servers', 'items', 'serverItems.ts');
     assert.match(settings, /remoteAccess: \{ \.\.\.DEFAULT_REMOTE_ACCESS_SETTINGS \}/);
     assert.match(settings, /version: '1\.2\.0'/);
+    // The default is ON; persisted files predating it carry enabled: false and
+    // saved values win over defaults on merge, so the normalizer flips them
+    // ONCE and seals the marker (a later manual disable then always wins).
+    assert.match(model, /enabled: true,\s*provider: 'cloudflare-quick',\s*enabledByDefaultApplied: true/);
+    assert.match(settings, /savedSettings\.remoteAccess\?\.enabledByDefaultApplied/);
+    assert.match(settings, /remoteAccess\.enabled = true;\s*remoteAccess\.enabledByDefaultApplied = true;/);
     assert.match(items, /Cross-network connections/);
     assert.match(items, /codexr\.server\.config\.remoteAccess/);
+});
+
+test('invitation links carry no TTL and the download consent is asked once', () => {
+    const authority = readProjectFile('src', 'remote_access', 'security', 'remoteSessionAuthority.ts');
+    const pairingApi = readProjectFile('src', 'servers', 'runtime', 'remote', 'remotePairingApi.ts');
+    const binaryManager = readProjectFile('src', 'remote_access', 'services', 'cloudflaredBinaryManager.ts');
+    // The 30-minute invitation TTL made the sidebar's address die while the
+    // tunnel stayed up. Invitations now live until revocation.
+    assert.doesNotMatch(authority, /INVITATION_TTL_MS/);
+    assert.doesNotMatch(pairingApi, /expire 30 minutes/);
+    assert.match(pairingApi, /Invitation links only work while the host is sharing the server/);
+    // The other TTLs are untouched: the code, the session and the one-shot
+    // tokens keep their windows.
+    assert.match(authority, /PAIRING_TTL_MS = 5 \* 60 \* 1000/);
+    assert.match(authority, /SESSION_TTL_MS = 12 \* 60 \* 60 \* 1000/);
+    assert.match(authority, /BROWSER_TOKEN_TTL_MS = 2 \* 60 \* 1000/);
+    // cloudflared download: the modal is remembered after the first accept.
+    assert.match(binaryManager, /codexr\.cloudflaredDownloadConsented/);
+    assert.match(binaryManager, /globalState\.update\(CLOUDFLARED_CONSENT_KEY, true\)/);
 });
 
 test('remote HTTP and WebSocket access require server-issued sessions', () => {

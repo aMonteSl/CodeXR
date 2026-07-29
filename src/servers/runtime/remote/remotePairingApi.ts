@@ -170,7 +170,7 @@ export class RemotePairingApi {
             // A guest clicking a stale link gets an explanation, not raw JSON.
             this.sendGuestHtml(res, 404, renderInvitationErrorPage(
                 'This invitation is no longer valid',
-                'Invitation links expire 30 minutes after they are created, and they only work while the host is sharing the server. Ask the host for a new link.',
+                'Invitation links only work while the host is sharing the server. Ask the host for a new link.',
             ));
             return;
         }

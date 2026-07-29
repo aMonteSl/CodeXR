@@ -310,8 +310,19 @@ export class ServerSettingsManager {
 
     private normalizePersistedSettings(savedSettings: Partial<ServerSettings>): ServerSettings {
         const mergedSettings = this.deepMerge(DEFAULT_SERVER_SETTINGS, savedSettings);
+        // One-shot migration: cross-network is now enabled by default, but
+        // saved values win over defaults on merge and every pre-existing
+        // install persisted `enabled: false`. A file without the marker
+        // predates the new default: flip it once and seal the marker, so a
+        // user who disables it afterwards keeps their choice forever.
+        const remoteAccess = { ...mergedSettings.remoteAccess };
+        if (!savedSettings.remoteAccess?.enabledByDefaultApplied) {
+            remoteAccess.enabled = true;
+            remoteAccess.enabledByDefaultApplied = true;
+        }
         return {
             ...mergedSettings,
+            remoteAccess,
             configNonce: mergedSettings.configNonce || DEFAULT_SERVER_SETTINGS.configNonce,
         };
     }

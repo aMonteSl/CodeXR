@@ -55,7 +55,7 @@ Usage in this project:
 Usage in this project:
 - The executable is not included in the CodeXR VSIX.
 - CodeXR first uses a valid system installation when available.
-- Otherwise, after explicit consent, CodeXR downloads the pinned `2026.5.2` executable once into VS Code global storage and verifies its platform-specific SHA-256 before execution.
+- Otherwise, after explicit consent (asked once and remembered for later downloads), CodeXR downloads the pinned `2026.5.2` executable into VS Code global storage and verifies its platform-specific SHA-256 before execution.
 - It is executed without a shell and with a hidden window to create a temporary Cloudflare Quick Tunnel.
 - CodeXR uses an isolated cloudflared home directory and does not alter the user's existing Cloudflare configuration.
 
