@@ -4,7 +4,7 @@
 
 **CodeXR** (`code-xr`, published by `aMonteSl`, GPL-3.0) is a VS Code extension that analyzes source code and visualizes the metrics in extended reality. The pipeline: a **Python backend** (Lizard metrics, ~23 languages, run in a venv the extension manages) produces JSON → **BabiaXR/A-Frame templates** turn it into an XR scene → **local HTTP/HTTPS servers with SSE live-reload** serve it to a browser or headset. Three analysis modes share the pipeline: XR scene, LivePanel (2D webview), and DOM visualization. It also offers collaborative XR sessions and opt-in cross-network sharing via Cloudflare tunnels.
 
-Current work: **v1.2.0** (branch `v1.2.0`, with larger features on `feature/*` branches off it; `master` is the PR target). The volatile state of the version lives in `.claude/docs/V1.2.0_STATUS.md` — read it, don't re-derive it from git.
+Current work: **v1.2.1 — a maintenance release: cleanup, optimization, internal hygiene, no new features** (branch `v1.2.1`; `master` is the PR target and the only other branch). The volatile state of the version lives in `.claude/docs/V1.2.1_STATUS.md` — read it, don't re-derive it from git. **1.2.0 shipped on 2026-07-30**; its cycle is closed and `V1.2.0_STATUS.md` is now a historical record.
 
 ## Context system — read this first
 
@@ -17,7 +17,8 @@ Current work: **v1.2.0** (branch `v1.2.0`, with larger features on `feature/*` b
 | `.claude/docs/DEVELOPMENT.md` | Scripts, launch configs, test layers, packaging |
 | `.claude/docs/PYTHON_ANALYSIS.md` | Python backend + field-schema contract |
 | `.claude/docs/XR_COMPONENTS.md` | Scene generation, browser runtimes, chart system |
-| `.claude/docs/V1.2.0_STATUS.md` | Dated snapshot: done / in progress / pending / needs verification |
+| `.claude/docs/V1.2.1_STATUS.md` | **Active** dated snapshot: cleanup backlog (ranked), baseline measurements, session log |
+| `.claude/docs/V1.2.0_STATUS.md` | Historical record of the closed 1.2.0 cycle; source of carried-over debt |
 | `.claude/docs/AI_WORKFLOWS.md` | Playbooks: feature, bug fix, refactor, docs, release prep |
 
 ## Development commands
@@ -43,14 +44,16 @@ Full matrix and manual-validation flow: `.claude/docs/DEVELOPMENT.md`.
 | `runtime-component` | Touching JS/CSS under `templates/components/` — injection paths, load order, required tests |
 | `add-language` | Language-support changes — Python contract ↔ TS metadata sync, fixtures, test matrix |
 | `capture-media` | Producing README/website screenshots — drives a real running analysis with Playwright and reviews every shot (list in `media/SHOTLIST.md`) |
+| `cleanup` | **The v1.2.1 default**: any cleanup, dead-code removal, file split, lint tightening or size optimization — proof-before-delete rules and the measurement ritual |
 
 ## AI workflow rules
 
-1. **One feature, bug, or refactor per session.** Finish and validate before starting the next.
-2. Run `npm test` (plus the narrowest specialized script for the touched area) before declaring anything done. Never claim behavior works without a test run or the F5 flow.
-3. Work on `v1.2.0` or a `feature/*` branch off it; never commit directly to `master`.
+1. **One feature, bug, refactor, or cleanup item per session.** Finish and validate before starting the next.
+2. Run `npm test` (plus the narrowest specialized script for the touched area) before declaring anything done. Never claim behavior works without a test run or the F5 flow. Note that `lint` inside that gate is currently weak — see `V1.2.1_STATUS.md` backlog item 1.
+3. Work on `v1.2.1` or a `feature/*` branch off it; never commit directly to `master`.
 4. Label claims: confirmed / self-assessed (docs claim it) / inferred / open question. Docs' status labels ("Implementado") are self-assessments, not verified facts.
-5. When you change the version state (feature lands, verification resolved), **update `.claude/docs/V1.2.0_STATUS.md` and the CHANGELOG "[1.2.0] – Unreleased" section in the same session**. Architecture changed → `ARCHITECTURE.md`; tooling changed → `DEVELOPMENT.md`; doc added → `INDEX.md`.
+5. When you change the version state (cleanup lands, verification resolved), **update `.claude/docs/V1.2.1_STATUS.md` and the CHANGELOG "[1.2.1] – Unreleased" section in the same session**. Architecture changed → `ARCHITECTURE.md`; tooling changed → `DEVELOPMENT.md`; doc added → `INDEX.md`.
+6. **v1.2.1 is maintenance only**: cleanup, optimization, hygiene. Changes are behaviour-neutral unless the CHANGELOG says otherwise; a new feature belongs in 1.3.0. Deadness is proved by grep, never assumed from a filename.
 
 ## Safety rules
 

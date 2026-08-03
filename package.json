@@ -2,7 +2,7 @@
   "name": "code-xr",
   "displayName": "Code-XR",
   "description": "Analyze your code and walk through it as a 3D city in your browser: metrics, dependency graph, Git history and collaboration, all local. VR optional.",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "keywords": [
     "code visualization",
     "code metrics",

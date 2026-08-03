@@ -5,16 +5,17 @@
 
 ## Universal session rules
 
-1. **One unit of work per session** — one feature, one bug, one refactor, or one docs/release task. Finish and validate it before starting anything else.
+0. **Know the version's scope.** The active version is **v1.2.1, a maintenance release: cleanup, optimization and hygiene, no new features.** Read `V1.2.1_STATUS.md` for the ranked backlog and the baseline numbers. If a task would add user-visible behaviour, it belongs in 1.3.0 — say so instead of quietly widening 1.2.1.
+1. **One unit of work per session** — one feature, one bug, one refactor, one cleanup item, or one docs/release task. Finish and validate it before starting anything else.
 2. **Start from `INDEX.md`** and read only the documents mapped to your task type. Do not scan `src/` broadly; `src/code_analysis/` alone is 246 files.
 3. **Distinguish claim levels** in everything you report and write: confirmed (you verified it), self-assessed (a doc claims it), inferred, open question.
 4. **Validate before declaring done**: at minimum `npm run test:basic`; plus the narrowest specialized script for the touched area (matrix in `DEVELOPMENT.md`).
 5. **End-of-session checklist**:
    - [ ] Relevant tests pass (say which ones ran).
-   - [ ] `V1.2.0_STATUS.md` updated if the version state changed.
-   - [ ] `CHANGELOG.md` "[1.2.0] – Unreleased" updated for user-visible changes.
+   - [ ] `V1.2.1_STATUS.md` updated if the version state changed — including the baseline row you moved.
+   - [ ] `CHANGELOG.md` "[1.2.1] – Unreleased" updated for user-visible changes (pure internal hygiene needs no entry — say so rather than inventing one).
    - [ ] Architecture/development docs updated if their subject changed.
-   - [ ] Work committed on `v1.2.0` (never commit directly to `master`).
+   - [ ] Work committed on `v1.2.1` (never commit directly to `master`).
 
 ## Playbook: new feature
 
@@ -33,6 +34,18 @@
 3. Fix at the root cause; do not patch around watchers/session lifecycle without reading `engine/core/analysisSession.ts` + `engine/watchers/` behavior.
 4. Validate: the new/affected test + `npm run test:basic`.
 5. Update CHANGELOG (Fixed) and, if the bug revealed wrong documentation, correct the doc in the same session.
+
+## Playbook: cleanup / optimization (the v1.2.1 default)
+
+Full procedure lives in the **`cleanup` skill** — invoke it. Summary:
+
+1. Read `V1.2.1_STATUS.md`: ranked backlog + baseline measurements. Take **one** item; do not bundle opportunistic extras (they destroy bisectability, which is the safety net of a cleanup branch).
+2. **Prove deadness, never assume it.** Grep across `src/`, `templates/`, `test/`, `package.json`. Two known traps: `debugThemeProblem.ts` looks dead but is a registered command (`commands/index.ts:15`), and `src/active_servers/views/` vs `src/views/active_servers/` is deliberate historical duplication (see §refactor rule 4).
+3. Reshaping a file → characterize first. Precedent: `httpServer.ts` 2,102 → 487 lines with a byte-identical characterization diff.
+4. Behaviour-neutral unless the CHANGELOG says otherwise. Users should notice a smaller package and nothing else.
+5. Off-limits in a cleanup session: git history rewrites (the 1.03 GiB pack is *propose only* — it breaks every clone), removing 1.1.0 upgrade migrations or published `Legacy*` command aliases, deleting docs.
+6. Verify per the `verify` skill. Lint-config changes: land config + fallout together, never leave the gate red. Asset/`files` changes: `npm run package:vsix` and inspect the zip.
+7. Record the number. Update the baseline row in `V1.2.1_STATUS.md` and append a session-log entry. A cleanup with no measurement is a claim, not a result.
 
 ## Playbook: refactor
 

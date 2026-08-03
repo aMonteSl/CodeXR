@@ -1,6 +1,10 @@
 # Changelog
 
-## [1.2.0] - Unreleased
+## [1.2.1] - Unreleased
+
+Maintenance release: code cleanup, optimization and internal hygiene. No new features — anything user-visible here is a removal of dead surface, a smaller package, or a faster path through code that already existed.
+
+## [1.2.0] - 2026-07-30
 
 ### CodeXR 1.2.0: "Threads, Timelines & Global Networks"
 

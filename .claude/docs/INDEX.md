@@ -14,7 +14,8 @@
 | `DEVELOPMENT.md` | npm scripts, launch configs, test layers, packaging, tooling quirks |
 | `PYTHON_ANALYSIS.md` | The Python metrics backend, venv, field-schema contract |
 | `XR_COMPONENTS.md` | Scene generation, browser runtimes, table modes, chart system |
-| `V1.2.0_STATUS.md` | **Volatile** dated snapshot: implemented / in progress / pending / needs-verification / documentation debt |
+| `V1.2.1_STATUS.md` | **Volatile — the active status doc.** Cleanup backlog (ranked), baseline measurements, session log |
+| `V1.2.0_STATUS.md` | Historical record of the closed 1.2.0 cycle (released 2026-07-30); source of carried-over debt. Do not rewrite |
 | `AI_WORKFLOWS.md` | Playbooks per task type + universal session rules |
 
 ### Project skills (`.claude/skills/` — never shipped; invoked via the Skill tool or `/<name>`)
@@ -25,13 +26,15 @@
 | `session-close` | End-of-session checklist: status doc, CHANGELOG, doc sync, commit hygiene |
 | `runtime-component` | Rules for `templates/components/` runtimes: injection paths, load order, tests |
 | `add-language` | Language-support changes: Python contract ↔ TS metadata, fixtures, test matrix |
+| `capture-media` | README/website screenshots driven from a real running analysis (`media/SHOTLIST.md`) |
+| `cleanup` | **v1.2.1 default**: dead-code removal, file splits, lint tightening, size optimization — proof-before-delete + measurement ritual |
 
 ### Existing project docs (shipped in the VSIX via `docs/**`)
 
 | Document | Language | One-line purpose |
 |---|---|---|
 | `README.md` | EN | User-facing overview, features, install (partly one release behind — see status doc) |
-| `CHANGELOG.md` | EN | Version history; `[1.2.0] – Unreleased` is the active section |
+| `CHANGELOG.md` | EN | Version history; `[1.2.1] – Unreleased` is the active section (1.2.0 released 2026-07-30) |
 | `docs/project/ROADMAP_V1.2.0.md` | ES | v1.2.0 goals, per-area status table, delivery sequence, exit criteria |
 | `docs/features/DEPENDENCY_GRAPH_XR.md` | EN | Dependency-graph XR mode: architecture, 23 languages, layouts, limits |
 | `docs/features/HISTORICAL_COMPARISON_XR.md` | ES | Historical comparator: dual table, safe Git access, caching, limits |
@@ -48,7 +51,8 @@
 | Task | Read (in order) | Likely folders |
 |---|---|---|
 | **Any session (always)** | `CLAUDE.md` → this index | — |
-| **New feature** | `ARCHITECTURE.md` → `V1.2.0_STATUS.md` → area doc(s) → `AI_WORKFLOWS.md` §feature | per module convention |
+| **Cleanup / optimization (v1.2.1 default)** | `V1.2.1_STATUS.md` (backlog + baseline) → `cleanup` skill → `AI_WORKFLOWS.md` §cleanup | whatever the backlog item names |
+| **New feature** | `ARCHITECTURE.md` → `V1.2.1_STATUS.md` → area doc(s) → `AI_WORKFLOWS.md` §feature. **Note: features are out of scope for 1.2.1** | per module convention |
 | **Bug fix** | `ARCHITECTURE.md` (module map) → `AI_WORKFLOWS.md` §bug fix; area doc if a contract seam is involved | the one module |
 | **Refactor** | `ARCHITECTURE.md` (contracts!) → `AI_WORKFLOWS.md` §refactor | crossing modules |
 | **XR visuals / scene / runtimes** | `XR_COMPONENTS.md` → `templates/components/COMPONENTS.md`; `docs/xr-testing/XR_DEBUG_COMMANDS.md` when debugging | `templates/`, `src/babia_templates/`, `engine/components/` |
@@ -57,8 +61,8 @@
 | **Historical / Project Evolution** | `V1.2.0_STATUS.md` → `docs/features/HISTORICAL_COMPARISON_XR.md` / `docs/features/PROJECT_EVOLUTION_XR.md` | `code_analysis/historical/` |
 | **Servers / SSE / collaboration / remote** | `ARCHITECTURE.md` → `docs/features/CLOUDFLARE_REMOTE_ACCESS.md` for tunnels | `src/servers/`, `active_servers/`, `collaboration/`, `remote_access/` |
 | **Build / test / tooling** | `DEVELOPMENT.md` | `scripts/`, configs |
-| **Docs update** | `AI_WORKFLOWS.md` §docs → `V1.2.0_STATUS.md` §documentation debt | `docs/`, `.claude/docs/` |
-| **Release preparation** | `V1.2.0_STATUS.md` (all) → `docs/project/ROADMAP_V1.2.0.md` → `AI_WORKFLOWS.md` §release → `DEVELOPMENT.md` §packaging | everything user-visible |
+| **Docs update** | `AI_WORKFLOWS.md` §docs → `V1.2.1_STATUS.md` §carried-over debt → `V1.2.0_STATUS.md` §documentation debt | `docs/`, `.claude/docs/` |
+| **Release preparation** | `V1.2.1_STATUS.md` (all) → `AI_WORKFLOWS.md` §release → `DEVELOPMENT.md` §packaging; `docs/project/ROADMAP_V1.2.0.md` only for historical exit criteria | everything user-visible |
 
 ## Folders to avoid (context cost / generated)
 
