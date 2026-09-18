@@ -15,6 +15,11 @@
 | `PYTHON_ANALYSIS.md` | The Python metrics backend, venv, field-schema contract |
 | `XR_COMPONENTS.md` | Scene generation, browser runtimes, table modes, chart system |
 | `V1.2.1_STATUS.md` | **Volatile — the active status doc.** Cleanup backlog (ranked), baseline measurements, session log |
+| `v1.2.1/ROADMAP.md` | **The v1.2.1 programme**: maintainer decisions, per-commit protocol, tool-measured baseline, the override table, commit-by-commit tables per wave (W0-W5), the record-only register for 1.3.0, exit criteria. Read sections A-E, then only your wave |
+| `v1.2.1/AUDIT.md` | Frozen evidence: 220 findings with skeptic verdicts + the "looks dead but is ALIVE" lists. ~275 KB — **grep it** (finding id or file name), never read it whole |
+| `v1.2.1/DESIGN_GUARDRAILS.md` | File-level design for the safety net, the ratchet, H1/H2, the ESLint/tsc/ruff rollout, the vscode-free log sink, typing |
+| `v1.2.1/DESIGN_STRUCTURAL.md` | Target architecture + commit slicing for every W4/W5 refactor, each with the characterization test that must land first, and a cut order |
+| `v1.2.1/CRITIC_REVIEW.md` | The 38 corrections to those designs, with file:line evidence; summarized in the ROADMAP override table |
 | `V1.2.0_STATUS.md` | Historical record of the closed 1.2.0 cycle (released 2026-07-30); source of carried-over debt. Do not rewrite |
 | `AI_WORKFLOWS.md` | Playbooks per task type + universal session rules |
 
@@ -51,7 +56,7 @@
 | Task | Read (in order) | Likely folders |
 |---|---|---|
 | **Any session (always)** | `CLAUDE.md` → this index | — |
-| **Cleanup / optimization (v1.2.1 default)** | `V1.2.1_STATUS.md` (backlog + baseline) → `cleanup` skill → `AI_WORKFLOWS.md` §cleanup | whatever the backlog item names |
+| **Cleanup / optimization (v1.2.1 default)** | `V1.2.1_STATUS.md` (where we are: waves + session log) → `v1.2.1/ROADMAP.md` §A-E, then your wave's table → `cleanup` skill → grep `v1.2.1/AUDIT.md` for the finding id / file before deleting; `v1.2.1/DESIGN_*.md` for the design of the item | whatever the roadmap row names |
 | **New feature** | `ARCHITECTURE.md` → `V1.2.1_STATUS.md` → area doc(s) → `AI_WORKFLOWS.md` §feature. **Note: features are out of scope for 1.2.1** | per module convention |
 | **Bug fix** | `ARCHITECTURE.md` (module map) → `AI_WORKFLOWS.md` §bug fix; area doc if a contract seam is involved | the one module |
 | **Refactor** | `ARCHITECTURE.md` (contracts!) → `AI_WORKFLOWS.md` §refactor | crossing modules |
