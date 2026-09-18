@@ -753,7 +753,7 @@
     "watch": "node ./node_modules/webpack/bin/webpack.js --watch",
     "package": "node ./node_modules/webpack/bin/webpack.js --mode production",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit --incremental false -p .",
-    "compile-tests": "node ./node_modules/typescript/bin/tsc -p . --outDir out",
+    "compile-tests": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\" && node ./node_modules/typescript/bin/tsc -p . --outDir out",
     "watch-tests": "node ./node_modules/typescript/bin/tsc -p . -w --outDir out",
     "lint": "node ./node_modules/eslint/bin/eslint.js src",
     "test": "npm run test:basic",
