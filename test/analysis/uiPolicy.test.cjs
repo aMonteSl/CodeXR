@@ -113,3 +113,17 @@ test('plugin text sources do not contain emoji characters', () => {
     const offenders = files.filter((filePath) => emojiPattern.test(fs.readFileSync(filePath, 'utf8')));
     assert.deepEqual(offenders.map((filePath) => path.relative(projectRoot, filePath)), []);
 });
+
+test('plugin text sources contain no NUL bytes', () => {
+    // A single raw NUL makes ripgrep (and git) classify the whole file as
+    // binary and skip it silently, so every repo-wide search, dead-code proof
+    // and lint sweep goes blind to it. Spell the character as an escape.
+    const files = [
+        ...collectTextFiles('src'),
+        ...collectTextFiles('templates'),
+        ...collectTextFiles('test'),
+        ...collectTextFiles('scripts'),
+    ];
+    const offenders = files.filter((filePath) => fs.readFileSync(filePath).includes(0));
+    assert.deepEqual(offenders.map((filePath) => path.relative(projectRoot, filePath)), []);
+});
