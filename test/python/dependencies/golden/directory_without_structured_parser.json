@@ -1,0 +1,1190 @@
+{
+  "generatedBy": "python test/python/dependencies/regenerate_golden.py",
+  "pins": "analyze_dependencies; tree_sitter_language_pack not installed (lexical adapter only)",
+  "capabilities": {
+    "Python": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Ruby": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Java": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "C": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "C++": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "C#": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Erlang": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Fortran": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "GDScript": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Go": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "JavaScript": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Kotlin": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Lua": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Objective-C": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "PHP": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Perl": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Scala": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Solidity": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Swift": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "TypeScript": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "TTCN-3": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Vue": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Zig": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"}
+  },
+  "cases": {
+    "fixture corpus, recursive": {
+      "payload": {
+        "schemaVersion": 2,
+        "revision": 0,
+        "targetType": "directory",
+        "targetRelativePath": "",
+        "nodes": [
+          {
+            "id": "file:470666cc067a6657",
+            "kind": "file",
+            "label": "c_sample.c",
+            "relativePath": "c_sample.c",
+            "language": "C",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:9f969f37c5e8280c",
+            "kind": "file",
+            "label": "cpp_sample.cpp",
+            "relativePath": "cpp_sample.cpp",
+            "language": "C++",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:2b0aa2e86c303b58",
+            "kind": "file",
+            "label": "csharp_sample.cs",
+            "relativePath": "csharp_sample.cs",
+            "language": "C#",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:ffb9ab0b33830235",
+            "kind": "file",
+            "label": "erlang_sample.erl",
+            "relativePath": "erlang_sample.erl",
+            "language": "Erlang",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 3, "degree": 3, "dependentCount": 0, "cycleSize": 0, "relationCount": 3}
+          },
+          {
+            "id": "file:1436ffa75225a2b7",
+            "kind": "file",
+            "label": "fortran_sample.f90",
+            "relativePath": "fortran_sample.f90",
+            "language": "Fortran",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:5e39f0919f41d055",
+            "kind": "file",
+            "label": "gdscript_sample.gd",
+            "relativePath": "gdscript_sample.gd",
+            "language": "GDScript",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:60c155e8ca7d3967",
+            "kind": "file",
+            "label": "go_sample.go",
+            "relativePath": "go_sample.go",
+            "language": "Go",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:369ea4f3af27e2f1",
+            "kind": "file",
+            "label": "java_sample.java",
+            "relativePath": "java_sample.java",
+            "language": "Java",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:9e742978a5153513",
+            "kind": "file",
+            "label": "javascript_sample.js",
+            "relativePath": "javascript_sample.js",
+            "language": "JavaScript",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:73e668d876479067",
+            "kind": "file",
+            "label": "kotlin_sample.kt",
+            "relativePath": "kotlin_sample.kt",
+            "language": "Kotlin",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:ac323b2df0056ab4",
+            "kind": "file",
+            "label": "lua_sample.lua",
+            "relativePath": "lua_sample.lua",
+            "language": "Lua",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:a08d9a6f4d296d73",
+            "kind": "file",
+            "label": "objective_c_sample.m",
+            "relativePath": "objective_c_sample.m",
+            "language": "Objective-C",
+            "external": false,
+            "metrics": {"totalLines": 4, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:42568df4bf38dd61",
+            "kind": "file",
+            "label": "perl_sample.pl",
+            "relativePath": "perl_sample.pl",
+            "language": "Perl",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:b7ef539df218ba55",
+            "kind": "file",
+            "label": "php_sample.php",
+            "relativePath": "php_sample.php",
+            "language": "PHP",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:4fda496611e737b0",
+            "kind": "file",
+            "label": "python_sample.py",
+            "relativePath": "python_sample.py",
+            "language": "Python",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:40fa3a7258ec61f0",
+            "kind": "file",
+            "label": "ruby_sample.rb",
+            "relativePath": "ruby_sample.rb",
+            "language": "Ruby",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:8df40a7c772cc895",
+            "kind": "file",
+            "label": "scala_sample.scala",
+            "relativePath": "scala_sample.scala",
+            "language": "Scala",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:6641e1be5075de0d",
+            "kind": "file",
+            "label": "shared.gd",
+            "relativePath": "shared.gd",
+            "language": "GDScript",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 24, "fanOut": 1, "degree": 25, "dependentCount": 24, "cycleSize": 0, "relationCount": 28}
+          },
+          {
+            "id": "file:1de33a684cee256c",
+            "kind": "file",
+            "label": "shared.h",
+            "relativePath": "shared.h",
+            "language": "C",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:280e0fc317b8e28b",
+            "kind": "file",
+            "label": "shared.hrl",
+            "relativePath": "shared.hrl",
+            "language": "Erlang",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:b3debe8e1798211d",
+            "kind": "file",
+            "label": "shared.php",
+            "relativePath": "shared.php",
+            "language": "PHP",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:a33ca3bfc7b8117f",
+            "kind": "file",
+            "label": "shared.py",
+            "relativePath": "shared.py",
+            "language": "Python",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:d409b7e8c56589fd",
+            "kind": "file",
+            "label": "shared.sol",
+            "relativePath": "shared.sol",
+            "language": "Solidity",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 0, "degree": 0, "dependentCount": 0, "cycleSize": 0, "relationCount": 0}
+          },
+          {
+            "id": "file:619612819f515a06",
+            "kind": "file",
+            "label": "shared.zig",
+            "relativePath": "shared.zig",
+            "language": "Zig",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 0, "degree": 0, "dependentCount": 0, "cycleSize": 0, "relationCount": 0}
+          },
+          {
+            "id": "file:1ac6f6aa245aff02",
+            "kind": "file",
+            "label": "solidity_sample.sol",
+            "relativePath": "solidity_sample.sol",
+            "language": "Solidity",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:45105192ce986a97",
+            "kind": "file",
+            "label": "swift_sample.swift",
+            "relativePath": "swift_sample.swift",
+            "language": "Swift",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:fabe4c388afa493a",
+            "kind": "file",
+            "label": "ttcn_sample.ttcn3",
+            "relativePath": "ttcn_sample.ttcn3",
+            "language": "TTCN-3",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:a7690be986feb0a9",
+            "kind": "file",
+            "label": "typescript_sample.ts",
+            "relativePath": "typescript_sample.ts",
+            "language": "TypeScript",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:54c1b7fa92a4c3f3",
+            "kind": "file",
+            "label": "vue_sample.vue",
+            "relativePath": "vue_sample.vue",
+            "language": "Vue",
+            "external": false,
+            "metrics": {"totalLines": 4, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:eb57b8669c84c88e",
+            "kind": "file",
+            "label": "zig_sample.zig",
+            "relativePath": "zig_sample.zig",
+            "language": "Zig",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:58aaa9e84ca96f45",
+            "kind": "external",
+            "label": "shared_value",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 3, "fanOut": 0, "degree": 3, "dependentCount": 3, "cycleSize": 0, "relationCount": 3}
+          },
+          {
+            "id": "external:cbf24799490c0808",
+            "kind": "external",
+            "label": "include",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:788d0e9bba34cdd3",
+            "kind": "external",
+            "label": "module",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:54a38326a856cf82",
+            "kind": "external",
+            "label": "require",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:e7488f7618b91ecc",
+            "kind": "external",
+            "label": "Node",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:7ea5112f6bf300aa",
+            "kind": "external",
+            "label": "define",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:6cb90256e0550389",
+            "kind": "external",
+            "label": "from",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:80fb7bd4e2f9c3c5",
+            "kind": "external",
+            "label": "import",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          }
+        ],
+        "edges": [
+          {"id": "edge:e462081c35f36e7d", "source": "file:470666cc067a6657", "target": "external:58aaa9e84ca96f45", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:343a1d4e515cf537", "source": "file:470666cc067a6657", "target": "file:6641e1be5075de0d", "kind": "include", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:f54edb1f8153ebe6", "source": "file:9f969f37c5e8280c", "target": "file:6641e1be5075de0d", "kind": "include", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:168c54d7ea6385ab", "source": "file:2b0aa2e86c303b58", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:f71907b99fa35b15", "source": "file:ffb9ab0b33830235", "target": "external:cbf24799490c0808", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:89fdad0a96838648", "source": "file:ffb9ab0b33830235", "target": "external:788d0e9bba34cdd3", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:902d4dbb43b1a733", "source": "file:ffb9ab0b33830235", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:298e29fd1ef98ca6", "source": "file:1436ffa75225a2b7", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:24d3ec25d4854bd3", "source": "file:5e39f0919f41d055", "target": "file:6641e1be5075de0d", "kind": "inheritance", "confidence": "probable", "occurrences": 1},
+          {"id": "edge:ea0150dcff03226f", "source": "file:60c155e8ca7d3967", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:defb7f61e88e4de2", "source": "file:369ea4f3af27e2f1", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:90c402781a656d82", "source": "file:9e742978a5153513", "target": "file:6641e1be5075de0d", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:12e1cb318063010b", "source": "file:9e742978a5153513", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 2},
+          {"id": "edge:da250c8e89899f80", "source": "file:73e668d876479067", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:07fe4dca261c305f", "source": "file:ac323b2df0056ab4", "target": "external:54a38326a856cf82", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:2ebd89b99b4f73f1", "source": "file:ac323b2df0056ab4", "target": "file:6641e1be5075de0d", "kind": "require", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:72f8c83be0239d8a", "source": "file:a08d9a6f4d296d73", "target": "file:6641e1be5075de0d", "kind": "include", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:6c22d8890c8b7303", "source": "file:42568df4bf38dd61", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:9daac0d0c77a001d", "source": "file:b7ef539df218ba55", "target": "file:6641e1be5075de0d", "kind": "require", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:97f09ee5eb207436", "source": "file:4fda496611e737b0", "target": "file:6641e1be5075de0d", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:b112d3f6d57730ec", "source": "file:4fda496611e737b0", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:b8a8aeb17e862d3c", "source": "file:40fa3a7258ec61f0", "target": "file:6641e1be5075de0d", "kind": "require", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:cbe13a5d2a67a684", "source": "file:8df40a7c772cc895", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:f96ab00ec941ce3b", "source": "file:6641e1be5075de0d", "target": "external:e7488f7618b91ecc", "kind": "inheritance", "confidence": "probable", "occurrences": 1},
+          {"id": "edge:b1e35047d5a4ee43", "source": "file:1de33a684cee256c", "target": "external:58aaa9e84ca96f45", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:a774c5926e794ee6", "source": "file:280e0fc317b8e28b", "target": "external:7ea5112f6bf300aa", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:d3914499dce24f7c", "source": "file:b3debe8e1798211d", "target": "external:58aaa9e84ca96f45", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:1efd7e5450c0ff99", "source": "file:a33ca3bfc7b8117f", "target": "file:6641e1be5075de0d", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:131bdea2bd2f09d6", "source": "file:1ac6f6aa245aff02", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:b9e1fec39b4da14c", "source": "file:45105192ce986a97", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:9877cddc0c80664e", "source": "file:fabe4c388afa493a", "target": "external:6cb90256e0550389", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:3938c4e5cd27fc91", "source": "file:fabe4c388afa493a", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:f47bbcb6fc85e7db", "source": "file:a7690be986feb0a9", "target": "file:6641e1be5075de0d", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:9bded66912b2aab2", "source": "file:a7690be986feb0a9", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 2},
+          {"id": "edge:726f88119e15df66", "source": "file:54c1b7fa92a4c3f3", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 2},
+          {"id": "edge:601f066c7293619e", "source": "file:eb57b8669c84c88e", "target": "external:80fb7bd4e2f9c3c5", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:7cc95b4d122c1940", "source": "file:eb57b8669c84c88e", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1}
+        ],
+        "warnings": [
+          "C#: structured parser unavailable; lexical adapter used",
+          "C++: structured parser unavailable; lexical adapter used",
+          "C: structured parser unavailable; lexical adapter used",
+          "Erlang: structured parser unavailable; lexical adapter used",
+          "Fortran: structured parser unavailable; lexical adapter used",
+          "GDScript: structured parser unavailable; lexical adapter used",
+          "Go: structured parser unavailable; lexical adapter used",
+          "Java: structured parser unavailable; lexical adapter used",
+          "JavaScript: structured parser unavailable; lexical adapter used",
+          "Kotlin: structured parser unavailable; lexical adapter used",
+          "Lua: structured parser unavailable; lexical adapter used",
+          "Objective-C: structured parser unavailable; lexical adapter used",
+          "PHP: structured parser unavailable; lexical adapter used",
+          "Perl: structured parser unavailable; lexical adapter used",
+          "Python: structured parser unavailable; lexical adapter used",
+          "Ruby: structured parser unavailable; lexical adapter used",
+          "Scala: structured parser unavailable; lexical adapter used",
+          "Solidity: structured parser unavailable; lexical adapter used",
+          "Swift: structured parser unavailable; lexical adapter used",
+          "TTCN-3: structured parser unavailable; lexical adapter used",
+          "TypeScript: structured parser unavailable; lexical adapter used",
+          "Vue: structured parser unavailable; lexical adapter used",
+          "Zig: structured parser unavailable; lexical adapter used"
+        ],
+        "capabilities": "<the capabilities block at the top of this document>",
+        "generatedAt": ""
+      },
+      "cache": {
+        "version": 3,
+        "root": "<root>",
+        "files": {
+          "c_sample.c": {
+            "hash": "89345fa273af551869f27217d7f804e0224725c8e5a4334377f45c859df21d91",
+            "language": "C",
+            "parserAvailable": false,
+            "targets": [["call", "c_sample", "ambiguous"], ["call", "shared_value", "ambiguous"], ["include", "shared.h", "exact"]],
+            "totalLines": 3
+          },
+          "cpp_sample.cpp": {"hash": "58c26735703363acfe376ddd0301eb1dd14744168791e0286a27f657e17b51e6", "language": "C++", "parserAvailable": false, "targets": [["include", "shared.h", "exact"]], "totalLines": 3},
+          "csharp_sample.cs": {"hash": "c594984c3ee6be45eac841ecbd3e2c0116fe05b42e1a00348524dc4f000d191a", "language": "C#", "parserAvailable": false, "targets": [["import", "shared", "exact"]], "totalLines": 3},
+          "erlang_sample.erl": {
+            "hash": "4ad923bfa5e8d81cdae5a54050ab69a83a1956e06b799b9555964458db9d7080",
+            "language": "Erlang",
+            "parserAvailable": false,
+            "targets": [["call", "include", "ambiguous"], ["call", "module", "ambiguous"], ["import", "shared.hrl", "exact"]],
+            "totalLines": 3
+          },
+          "fortran_sample.f90": {"hash": "7bfd269269b9d6628aecc3b936dcc474c4a8e37948e910771c1d10718483b448", "language": "Fortran", "parserAvailable": false, "targets": [["import", "shared", "exact"]], "totalLines": 3},
+          "gdscript_sample.gd": {"hash": "551d02b1f65ccc5d29216c17dc08397f73ea02c29c8a88a642dd7accd687c568", "language": "GDScript", "parserAvailable": false, "targets": [["inheritance", "shared.gd", "probable"]], "totalLines": 1},
+          "go_sample.go": {"hash": "a7224e1d3a0074728473a6c27ee871021118addada77dc75193b3bde369d0edb", "language": "Go", "parserAvailable": false, "targets": [["import", "shared", "exact"]], "totalLines": 3},
+          "java_sample.java": {"hash": "7f00fa64a1c683b8a4fc4a4d1ffac651c1a09d66cedefc721600ca04f897f376", "language": "Java", "parserAvailable": false, "targets": [["import", "shared", "exact"]], "totalLines": 3},
+          "javascript_sample.js": {
+            "hash": "c5475eceeb05830d64c566830b11890f48afcef90ede873b3c5f0ce700825d31",
+            "language": "JavaScript",
+            "parserAvailable": false,
+            "targets": [["call", "shared", "ambiguous"], ["import", "./shared", "exact"], ["import", "shared", "exact"]],
+            "totalLines": 3
+          },
+          "kotlin_sample.kt": {"hash": "8144e3e46b50708e32701932224bb352c4f594afc20a6cda9a9de84b644a131e", "language": "Kotlin", "parserAvailable": false, "targets": [["import", "shared", "exact"]], "totalLines": 3},
+          "lua_sample.lua": {
+            "hash": "471867e442e3ad356474b5e5156d7416594ecec5a0f157f1fce888552e16adb5",
+            "language": "Lua",
+            "parserAvailable": false,
+            "targets": [["call", "require", "ambiguous"], ["require", "shared", "exact"]],
+            "totalLines": 1
+          },
+          "objective_c_sample.m": {"hash": "19839b5a67be47a5e7b9113f473c1429ab878bb8ea893da5b2ea9b2273361206", "language": "Objective-C", "parserAvailable": false, "targets": [["include", "shared.h", "exact"]], "totalLines": 4},
+          "perl_sample.pl": {"hash": "13139527f36313a7be4be6d93c29f7d7e9e32540a430a964cea2e5ebceccb0a7", "language": "Perl", "parserAvailable": false, "targets": [["import", "shared", "exact"]], "totalLines": 1},
+          "php_sample.php": {"hash": "8edab718953e05beafcbd09f2e980fad9412bd250523e2deaf363ade06d40b71", "language": "PHP", "parserAvailable": false, "targets": [["require", "shared.php", "exact"]], "totalLines": 2},
+          "python_sample.py": {
+            "hash": "8016e8bfea3eb7ffac05ac62d35f98b4d256026a6183f90c5925cd34d5bc1ea0",
+            "language": "Python",
+            "parserAvailable": false,
+            "targets": [["call", "shared", "ambiguous"], ["import", "shared", "exact"]],
+            "totalLines": 3
+          },
+          "ruby_sample.rb": {"hash": "9449b4aecb6f06a91bb009d962663430d8b9b0dbf7e0ff0fdd8dd24224418679", "language": "Ruby", "parserAvailable": false, "targets": [["require", "shared", "exact"]], "totalLines": 1},
+          "scala_sample.scala": {"hash": "88970c22cb4ab8b9627c13c7aa5f0758f60fc003277e938eeeb499a70f610a85", "language": "Scala", "parserAvailable": false, "targets": [["import", "shared", "exact"]], "totalLines": 3},
+          "shared.gd": {"hash": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a", "language": "GDScript", "parserAvailable": false, "targets": [["inheritance", "Node", "probable"]], "totalLines": 1},
+          "shared.h": {"hash": "1ef31ed3974cfa8fa4b88c4233ceee3382dc731ff06c43275fbcc480055eea43", "language": "C", "parserAvailable": false, "targets": [["call", "shared_value", "ambiguous"]], "totalLines": 1},
+          "shared.hrl": {"hash": "c6a50ebd2e60aa7d4ddffa4a11b067f791e0a4b4fe45a4fdc89375a1a87c9287", "language": "Erlang", "parserAvailable": false, "targets": [["call", "define", "ambiguous"]], "totalLines": 1},
+          "shared.php": {"hash": "8099298c03103d48345612a499e737692de5cabdb411529a5acad8b09b1a8a50", "language": "PHP", "parserAvailable": false, "targets": [["call", "shared_value", "ambiguous"]], "totalLines": 2},
+          "shared.py": {"hash": "e05162f4fa455e4f61d27fbfab1fa114d0013f132fcd2cb142ade4b4daa0010c", "language": "Python", "parserAvailable": false, "targets": [["call", "shared", "ambiguous"]], "totalLines": 2},
+          "shared.sol": {"hash": "b8be27f0a58e8fe5f1e63a2aa55e0323da9cd4f255827c7cdef20204f83368a6", "language": "Solidity", "parserAvailable": false, "targets": [], "totalLines": 2},
+          "shared.zig": {"hash": "bd48733c067d18047717fc8584d7eb6f09c2b4c838c798a80f336879e1fe57ee", "language": "Zig", "parserAvailable": false, "targets": [], "totalLines": 1},
+          "solidity_sample.sol": {"hash": "c19c716ecaa514c74cc5d219dbe22ddf25331f935e89a3d34dad4c733f670c25", "language": "Solidity", "parserAvailable": false, "targets": [["import", "./shared.sol", "exact"]], "totalLines": 2},
+          "swift_sample.swift": {"hash": "e581d7fa74d6ef06816a88f3c8b05099ad348ae6e85499499a572e7cc8190152", "language": "Swift", "parserAvailable": false, "targets": [["import", "shared", "exact"]], "totalLines": 3},
+          "ttcn_sample.ttcn3": {
+            "hash": "bce72cc1b28a0af133a4d8b0d36dd63e8450e5ff01e48f699e6189604a708f60",
+            "language": "TTCN-3",
+            "parserAvailable": false,
+            "targets": [["import", "from", "exact"], ["import", "shared", "exact"]],
+            "totalLines": 3
+          },
+          "typescript_sample.ts": {
+            "hash": "c5475eceeb05830d64c566830b11890f48afcef90ede873b3c5f0ce700825d31",
+            "language": "TypeScript",
+            "parserAvailable": false,
+            "targets": [["call", "shared", "ambiguous"], ["import", "./shared", "exact"], ["import", "shared", "exact"]],
+            "totalLines": 3
+          },
+          "vue_sample.vue": {
+            "hash": "2725aae5ac0232ce3ada850f7173fc19c152d98eb884216c3e9e5b207f8c6ba0",
+            "language": "Vue",
+            "parserAvailable": false,
+            "targets": [["import", "./shared", "exact"], ["import", "shared", "exact"]],
+            "totalLines": 4
+          },
+          "zig_sample.zig": {
+            "hash": "9f494d59cb98cc11ad3a1b29949c4693d01e5741ac3f27b19c913935e9715128",
+            "language": "Zig",
+            "parserAvailable": false,
+            "targets": [["call", "import", "ambiguous"], ["import", "shared.zig", "exact"]],
+            "totalLines": 1
+          }
+        }
+      },
+      "refreshFromCacheAloneDiffersIn": {}
+    },
+    "project, recursive": {
+      "payload": {
+        "schemaVersion": 2,
+        "revision": 0,
+        "targetType": "directory",
+        "targetRelativePath": "",
+        "nodes": [
+          {
+            "id": "file:c721056b5b88ec13",
+            "kind": "file",
+            "label": "geometry.ts",
+            "relativePath": "geometry.ts",
+            "language": "TypeScript",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 1, "fanOut": 1, "degree": 2, "dependentCount": 1, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:3919fe86bc3efab4",
+            "kind": "file",
+            "label": "helpers.py",
+            "relativePath": "helpers.py",
+            "language": "Python",
+            "external": false,
+            "metrics": {"totalLines": 6, "fanIn": 2, "fanOut": 3, "degree": 3, "dependentCount": 2, "cycleSize": 3, "relationCount": 6}
+          },
+          {
+            "id": "file:de0258e0698f3349",
+            "kind": "file",
+            "label": "legacy.py",
+            "relativePath": "legacy.py",
+            "language": "Python",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:ed848e06e30b8c6d",
+            "kind": "file",
+            "label": "util.py",
+            "relativePath": "package/util.py",
+            "language": "Python",
+            "external": false,
+            "metrics": {"totalLines": 5, "fanIn": 3, "fanOut": 2, "degree": 4, "dependentCount": 3, "cycleSize": 3, "relationCount": 5}
+          },
+          {
+            "id": "file:f09110064d2b4b73",
+            "kind": "file",
+            "label": "shapes.ts",
+            "relativePath": "shapes.ts",
+            "language": "TypeScript",
+            "external": false,
+            "metrics": {"totalLines": 22, "fanIn": 0, "fanOut": 8, "degree": 8, "dependentCount": 0, "cycleSize": 0, "relationCount": 8}
+          },
+          {
+            "id": "file:b42c91b4f445fab3",
+            "kind": "file",
+            "label": "tasks.pl",
+            "relativePath": "tasks.pl",
+            "language": "Perl",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:cf032932e433cf26",
+            "kind": "file",
+            "label": "worker.py",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "metrics": {"totalLines": 47, "fanIn": 1, "fanOut": 14, "degree": 14, "dependentCount": 1, "cycleSize": 3, "relationCount": 16}
+          },
+          {
+            "id": "external:61162fbd8412fc5a",
+            "kind": "external",
+            "label": "area",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:8e6c1d3a6052f8ca",
+            "kind": "external",
+            "label": "assist",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:a32020618c7ef238",
+            "kind": "external",
+            "label": "os",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:c69f64baac7fb3ca",
+            "kind": "external",
+            "label": "tool",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:96512ae52478d71b",
+            "kind": "external",
+            "label": "compute",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:843c2f3b8b58f5dd",
+            "kind": "external",
+            "label": "standalone",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:c8714330c62979f6",
+            "kind": "external",
+            "label": "Shape",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:95910421b3d2bc9e",
+            "kind": "external",
+            "label": "../outside",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:4020ebf55ab37c9d",
+            "kind": "external",
+            "label": "FS",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:b3d557e43b720281",
+            "kind": "external",
+            "label": "Base",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:9eca61b35dcfa643",
+            "kind": "external",
+            "label": "strict",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:cde1047ab0e0dd6f",
+            "kind": "external",
+            "label": "again",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:182e7f1bec42c74a",
+            "kind": "external",
+            "label": "describe",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:e2afd7f1cadcdc73",
+            "kind": "external",
+            "label": "helper",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:87a29d1726053845",
+            "kind": "external",
+            "label": "inner",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:386b3aa80dc5865c",
+            "kind": "external",
+            "label": "ping",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:7b38cd726146379e",
+            "kind": "external",
+            "label": "pong",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:6319d14e06d419ac",
+            "kind": "external",
+            "label": "rebase",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:743b556fc8b2d4a6",
+            "kind": "external",
+            "label": "run",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:680c54e838db8390",
+            "kind": "external",
+            "label": "self",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:1a3585c6138675e6",
+            "kind": "external",
+            "label": "vendor_lib",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          }
+        ],
+        "edges": [
+          {"id": "edge:5378c2ac91d0d615", "source": "file:c721056b5b88ec13", "target": "external:61162fbd8412fc5a", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:56478f3a57e2a488", "source": "file:3919fe86bc3efab4", "target": "external:8e6c1d3a6052f8ca", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:2e7cd60007b452be", "source": "file:3919fe86bc3efab4", "target": "file:cf032932e433cf26", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:a871fc09318d281e", "source": "file:3919fe86bc3efab4", "target": "file:ed848e06e30b8c6d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:164a4607c8632eff", "source": "file:3919fe86bc3efab4", "target": "file:cf032932e433cf26", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:6f8722819d1bb613", "source": "file:de0258e0698f3349", "target": "external:a32020618c7ef238", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:65feb1617ac767ec", "source": "file:ed848e06e30b8c6d", "target": "external:c69f64baac7fb3ca", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:0861f0d8aa7f70d3", "source": "file:ed848e06e30b8c6d", "target": "file:3919fe86bc3efab4", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:5c1e90aa8767d866", "source": "file:f09110064d2b4b73", "target": "external:61162fbd8412fc5a", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:262f82a87fb291e8", "source": "file:f09110064d2b4b73", "target": "external:96512ae52478d71b", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:ce31020cb687c159", "source": "file:f09110064d2b4b73", "target": "external:843c2f3b8b58f5dd", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:c80e3e76bf438624", "source": "file:f09110064d2b4b73", "target": "external:c8714330c62979f6", "kind": "implementation", "confidence": "probable", "occurrences": 1},
+          {"id": "edge:ab040d1616f5b8c8", "source": "file:f09110064d2b4b73", "target": "external:95910421b3d2bc9e", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:571ecf42a093b4f1", "source": "file:f09110064d2b4b73", "target": "file:c721056b5b88ec13", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:0605a278f230f503", "source": "file:f09110064d2b4b73", "target": "external:4020ebf55ab37c9d", "kind": "import", "confidence": "exact", "occurrences": 2},
+          {"id": "edge:fc9135090eaa9887", "source": "file:f09110064d2b4b73", "target": "external:b3d557e43b720281", "kind": "inheritance", "confidence": "probable", "occurrences": 1},
+          {"id": "edge:63950c7b511222eb", "source": "file:b42c91b4f445fab3", "target": "file:ed848e06e30b8c6d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:5ca35ba0502af1b3", "source": "file:b42c91b4f445fab3", "target": "external:9eca61b35dcfa643", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:8f5987949dd6183e", "source": "file:cf032932e433cf26", "target": "external:cde1047ab0e0dd6f", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:0ba290eb909d310f", "source": "file:cf032932e433cf26", "target": "external:182e7f1bec42c74a", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:b3c91eb499bc35b7", "source": "file:cf032932e433cf26", "target": "external:e2afd7f1cadcdc73", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:ea1379a01d958431", "source": "file:cf032932e433cf26", "target": "external:87a29d1726053845", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:cae561e781d276e1", "source": "file:cf032932e433cf26", "target": "external:386b3aa80dc5865c", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:4539b98f256f5181", "source": "file:cf032932e433cf26", "target": "external:7b38cd726146379e", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:c3d10d7086f862b5", "source": "file:cf032932e433cf26", "target": "external:6319d14e06d419ac", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:0f73af8efd8854c5", "source": "file:cf032932e433cf26", "target": "external:743b556fc8b2d4a6", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:26b02c31868430e7", "source": "file:cf032932e433cf26", "target": "external:680c54e838db8390", "kind": "call", "confidence": "ambiguous", "occurrences": 2},
+          {"id": "edge:f35dbc5e1ed70c21", "source": "file:cf032932e433cf26", "target": "external:c69f64baac7fb3ca", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:6beb675d13646dfb", "source": "file:cf032932e433cf26", "target": "file:3919fe86bc3efab4", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:7cd64917c90cf500", "source": "file:cf032932e433cf26", "target": "external:a32020618c7ef238", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:48aa92bf2f6cd2ba", "source": "file:cf032932e433cf26", "target": "file:ed848e06e30b8c6d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:05a3192617045227", "source": "file:cf032932e433cf26", "target": "external:1a3585c6138675e6", "kind": "import", "confidence": "exact", "occurrences": 2}
+        ],
+        "warnings": [
+          "Perl: structured parser unavailable; lexical adapter used",
+          "Python: structured parser unavailable; lexical adapter used",
+          "TypeScript: structured parser unavailable; lexical adapter used",
+          "legacy.py: invalid UTF-8 replaced"
+        ],
+        "capabilities": "<the capabilities block at the top of this document>",
+        "generatedAt": ""
+      },
+      "cache": {
+        "version": 3,
+        "root": "<root>",
+        "files": {
+          "geometry.ts": {"hash": "50a2e5c5928bf1c51b78511c0301639cc2cf682691c2a15d5d536ac61dcff343", "language": "TypeScript", "parserAvailable": false, "targets": [["call", "area", "ambiguous"]], "totalLines": 3},
+          "helpers.py": {
+            "hash": "37a024611c4896644284ad94a4fb3db64c2d65721b3676f83fc6ddb539a47e54",
+            "language": "Python",
+            "parserAvailable": false,
+            "targets": [["call", "assist", "ambiguous"], ["call", "worker.ping", "ambiguous"], ["import", "util", "exact"], ["import", "worker", "exact"]],
+            "totalLines": 6
+          },
+          "legacy.py": {"hash": "6a59da949b9306e7c2c48965c50e12a164ccb2d4389f155d3afebcc61833e1d6", "language": "Python", "parserAvailable": false, "targets": [["import", "os", "exact"]], "totalLines": 2},
+          "package/util.py": {
+            "hash": "4d391c8bb8bd0cad6b85c82ef8f8c3dc76c5a531fd8b27f6504ecd5c6a553454",
+            "language": "Python",
+            "parserAvailable": false,
+            "targets": [["call", "tool", "ambiguous"], ["import", "helpers", "exact"]],
+            "totalLines": 5
+          },
+          "shapes.ts": {
+            "hash": "9fa7e65472400878ed86e2e5dae9d4101073f7149e83e358902b4df33d3a906b",
+            "language": "TypeScript",
+            "parserAvailable": false,
+            "targets": [
+              ["call", "area", "ambiguous"],
+              ["call", "compute", "ambiguous"],
+              ["call", "standalone", "ambiguous"],
+              ["implementation", "Shape", "probable"],
+              ["import", "../outside", "exact"],
+              ["import", "./geometry", "exact"],
+              ["import", "FS/promises", "exact"],
+              ["import", "fs", "exact"],
+              ["inheritance", "Base", "probable"]
+            ],
+            "totalLines": 22
+          },
+          "tasks.pl": {
+            "hash": "a6c4345a87ab02ca0acc6c04a76e0bb69aae23455b48a5938bb8fefe810d6ead",
+            "language": "Perl",
+            "parserAvailable": false,
+            "targets": [["import", "package::util", "exact"], ["import", "strict", "exact"]],
+            "totalLines": 2
+          },
+          "worker.py": {
+            "hash": "27ff60a5f46bb424a2dc0fb10fba9db28ea0de591cdf5f00d7b67a4b30252ff7",
+            "language": "Python",
+            "parserAvailable": false,
+            "targets": [
+              ["call", "Worker", "ambiguous"],
+              ["call", "again", "ambiguous"],
+              ["call", "describe", "ambiguous"],
+              ["call", "helper", "ambiguous"],
+              ["call", "inner", "ambiguous"],
+              ["call", "ping", "ambiguous"],
+              ["call", "pong", "ambiguous"],
+              ["call", "rebase", "ambiguous"],
+              ["call", "run", "ambiguous"],
+              ["call", "self.describe", "ambiguous"],
+              ["call", "self.run", "ambiguous"],
+              ["call", "tool", "ambiguous"],
+              ["import", "helpers", "exact"],
+              ["import", "os", "exact"],
+              ["import", "package.util", "exact"],
+              ["import", "vendor_lib.core", "exact"],
+              ["import", "vendor_lib.extras", "exact"],
+              ["import", "worker.plugins", "exact"]
+            ],
+            "totalLines": 47
+          }
+        }
+      },
+      "refreshFromCacheAloneDiffersIn": {"payload.warnings": ["Perl: structured parser unavailable; lexical adapter used", "Python: structured parser unavailable; lexical adapter used", "TypeScript: structured parser unavailable; lexical adapter used"]}
+    },
+    "project, top level only": {
+      "payload": {
+        "schemaVersion": 2,
+        "revision": 0,
+        "targetType": "directory",
+        "targetRelativePath": "",
+        "nodes": [
+          {
+            "id": "file:c721056b5b88ec13",
+            "kind": "file",
+            "label": "geometry.ts",
+            "relativePath": "geometry.ts",
+            "language": "TypeScript",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 1, "fanOut": 1, "degree": 2, "dependentCount": 1, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:3919fe86bc3efab4",
+            "kind": "file",
+            "label": "helpers.py",
+            "relativePath": "helpers.py",
+            "language": "Python",
+            "external": false,
+            "metrics": {"totalLines": 6, "fanIn": 1, "fanOut": 3, "degree": 3, "dependentCount": 1, "cycleSize": 2, "relationCount": 5}
+          },
+          {
+            "id": "file:de0258e0698f3349",
+            "kind": "file",
+            "label": "legacy.py",
+            "relativePath": "legacy.py",
+            "language": "Python",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:f09110064d2b4b73",
+            "kind": "file",
+            "label": "shapes.ts",
+            "relativePath": "shapes.ts",
+            "language": "TypeScript",
+            "external": false,
+            "metrics": {"totalLines": 22, "fanIn": 0, "fanOut": 8, "degree": 8, "dependentCount": 0, "cycleSize": 0, "relationCount": 8}
+          },
+          {
+            "id": "file:b42c91b4f445fab3",
+            "kind": "file",
+            "label": "tasks.pl",
+            "relativePath": "tasks.pl",
+            "language": "Perl",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:cf032932e433cf26",
+            "kind": "file",
+            "label": "worker.py",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "metrics": {"totalLines": 47, "fanIn": 1, "fanOut": 14, "degree": 14, "dependentCount": 1, "cycleSize": 2, "relationCount": 16}
+          },
+          {
+            "id": "external:61162fbd8412fc5a",
+            "kind": "external",
+            "label": "area",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:8e6c1d3a6052f8ca",
+            "kind": "external",
+            "label": "assist",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:d4d8551ae6681698",
+            "kind": "external",
+            "label": "util",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:a32020618c7ef238",
+            "kind": "external",
+            "label": "os",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:96512ae52478d71b",
+            "kind": "external",
+            "label": "compute",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:843c2f3b8b58f5dd",
+            "kind": "external",
+            "label": "standalone",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:c8714330c62979f6",
+            "kind": "external",
+            "label": "Shape",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:95910421b3d2bc9e",
+            "kind": "external",
+            "label": "../outside",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:4020ebf55ab37c9d",
+            "kind": "external",
+            "label": "FS",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:b3d557e43b720281",
+            "kind": "external",
+            "label": "Base",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:f57366b5043ff59c",
+            "kind": "external",
+            "label": "package",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:9eca61b35dcfa643",
+            "kind": "external",
+            "label": "strict",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:cde1047ab0e0dd6f",
+            "kind": "external",
+            "label": "again",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:182e7f1bec42c74a",
+            "kind": "external",
+            "label": "describe",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:e2afd7f1cadcdc73",
+            "kind": "external",
+            "label": "helper",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:87a29d1726053845",
+            "kind": "external",
+            "label": "inner",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:386b3aa80dc5865c",
+            "kind": "external",
+            "label": "ping",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:7b38cd726146379e",
+            "kind": "external",
+            "label": "pong",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:6319d14e06d419ac",
+            "kind": "external",
+            "label": "rebase",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:743b556fc8b2d4a6",
+            "kind": "external",
+            "label": "run",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:680c54e838db8390",
+            "kind": "external",
+            "label": "self",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:c69f64baac7fb3ca",
+            "kind": "external",
+            "label": "tool",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:1a3585c6138675e6",
+            "kind": "external",
+            "label": "vendor_lib",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          }
+        ],
+        "edges": [
+          {"id": "edge:5378c2ac91d0d615", "source": "file:c721056b5b88ec13", "target": "external:61162fbd8412fc5a", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:56478f3a57e2a488", "source": "file:3919fe86bc3efab4", "target": "external:8e6c1d3a6052f8ca", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:2e7cd60007b452be", "source": "file:3919fe86bc3efab4", "target": "file:cf032932e433cf26", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:e8633f10fd0a1bb3", "source": "file:3919fe86bc3efab4", "target": "external:d4d8551ae6681698", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:164a4607c8632eff", "source": "file:3919fe86bc3efab4", "target": "file:cf032932e433cf26", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:6f8722819d1bb613", "source": "file:de0258e0698f3349", "target": "external:a32020618c7ef238", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:5c1e90aa8767d866", "source": "file:f09110064d2b4b73", "target": "external:61162fbd8412fc5a", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:262f82a87fb291e8", "source": "file:f09110064d2b4b73", "target": "external:96512ae52478d71b", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:ce31020cb687c159", "source": "file:f09110064d2b4b73", "target": "external:843c2f3b8b58f5dd", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:c80e3e76bf438624", "source": "file:f09110064d2b4b73", "target": "external:c8714330c62979f6", "kind": "implementation", "confidence": "probable", "occurrences": 1},
+          {"id": "edge:ab040d1616f5b8c8", "source": "file:f09110064d2b4b73", "target": "external:95910421b3d2bc9e", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:571ecf42a093b4f1", "source": "file:f09110064d2b4b73", "target": "file:c721056b5b88ec13", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:0605a278f230f503", "source": "file:f09110064d2b4b73", "target": "external:4020ebf55ab37c9d", "kind": "import", "confidence": "exact", "occurrences": 2},
+          {"id": "edge:fc9135090eaa9887", "source": "file:f09110064d2b4b73", "target": "external:b3d557e43b720281", "kind": "inheritance", "confidence": "probable", "occurrences": 1},
+          {"id": "edge:aa8e13adbf5c8861", "source": "file:b42c91b4f445fab3", "target": "external:f57366b5043ff59c", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:5ca35ba0502af1b3", "source": "file:b42c91b4f445fab3", "target": "external:9eca61b35dcfa643", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:8f5987949dd6183e", "source": "file:cf032932e433cf26", "target": "external:cde1047ab0e0dd6f", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:0ba290eb909d310f", "source": "file:cf032932e433cf26", "target": "external:182e7f1bec42c74a", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:b3c91eb499bc35b7", "source": "file:cf032932e433cf26", "target": "external:e2afd7f1cadcdc73", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:ea1379a01d958431", "source": "file:cf032932e433cf26", "target": "external:87a29d1726053845", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:cae561e781d276e1", "source": "file:cf032932e433cf26", "target": "external:386b3aa80dc5865c", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:4539b98f256f5181", "source": "file:cf032932e433cf26", "target": "external:7b38cd726146379e", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:c3d10d7086f862b5", "source": "file:cf032932e433cf26", "target": "external:6319d14e06d419ac", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:0f73af8efd8854c5", "source": "file:cf032932e433cf26", "target": "external:743b556fc8b2d4a6", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:26b02c31868430e7", "source": "file:cf032932e433cf26", "target": "external:680c54e838db8390", "kind": "call", "confidence": "ambiguous", "occurrences": 2},
+          {"id": "edge:f35dbc5e1ed70c21", "source": "file:cf032932e433cf26", "target": "external:c69f64baac7fb3ca", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:6beb675d13646dfb", "source": "file:cf032932e433cf26", "target": "file:3919fe86bc3efab4", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:7cd64917c90cf500", "source": "file:cf032932e433cf26", "target": "external:a32020618c7ef238", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:e9e22556ae82d889", "source": "file:cf032932e433cf26", "target": "external:f57366b5043ff59c", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:05a3192617045227", "source": "file:cf032932e433cf26", "target": "external:1a3585c6138675e6", "kind": "import", "confidence": "exact", "occurrences": 2}
+        ],
+        "warnings": [
+          "Perl: structured parser unavailable; lexical adapter used",
+          "Python: structured parser unavailable; lexical adapter used",
+          "TypeScript: structured parser unavailable; lexical adapter used",
+          "legacy.py: invalid UTF-8 replaced"
+        ],
+        "capabilities": "<the capabilities block at the top of this document>",
+        "generatedAt": ""
+      },
+      "cache": {
+        "version": 3,
+        "root": "<root>",
+        "files": {
+          "geometry.ts": {"hash": "50a2e5c5928bf1c51b78511c0301639cc2cf682691c2a15d5d536ac61dcff343", "language": "TypeScript", "parserAvailable": false, "targets": [["call", "area", "ambiguous"]], "totalLines": 3},
+          "helpers.py": {
+            "hash": "37a024611c4896644284ad94a4fb3db64c2d65721b3676f83fc6ddb539a47e54",
+            "language": "Python",
+            "parserAvailable": false,
+            "targets": [["call", "assist", "ambiguous"], ["call", "worker.ping", "ambiguous"], ["import", "util", "exact"], ["import", "worker", "exact"]],
+            "totalLines": 6
+          },
+          "legacy.py": {"hash": "6a59da949b9306e7c2c48965c50e12a164ccb2d4389f155d3afebcc61833e1d6", "language": "Python", "parserAvailable": false, "targets": [["import", "os", "exact"]], "totalLines": 2},
+          "shapes.ts": {
+            "hash": "9fa7e65472400878ed86e2e5dae9d4101073f7149e83e358902b4df33d3a906b",
+            "language": "TypeScript",
+            "parserAvailable": false,
+            "targets": [
+              ["call", "area", "ambiguous"],
+              ["call", "compute", "ambiguous"],
+              ["call", "standalone", "ambiguous"],
+              ["implementation", "Shape", "probable"],
+              ["import", "../outside", "exact"],
+              ["import", "./geometry", "exact"],
+              ["import", "FS/promises", "exact"],
+              ["import", "fs", "exact"],
+              ["inheritance", "Base", "probable"]
+            ],
+            "totalLines": 22
+          },
+          "tasks.pl": {
+            "hash": "a6c4345a87ab02ca0acc6c04a76e0bb69aae23455b48a5938bb8fefe810d6ead",
+            "language": "Perl",
+            "parserAvailable": false,
+            "targets": [["import", "package::util", "exact"], ["import", "strict", "exact"]],
+            "totalLines": 2
+          },
+          "worker.py": {
+            "hash": "27ff60a5f46bb424a2dc0fb10fba9db28ea0de591cdf5f00d7b67a4b30252ff7",
+            "language": "Python",
+            "parserAvailable": false,
+            "targets": [
+              ["call", "Worker", "ambiguous"],
+              ["call", "again", "ambiguous"],
+              ["call", "describe", "ambiguous"],
+              ["call", "helper", "ambiguous"],
+              ["call", "inner", "ambiguous"],
+              ["call", "ping", "ambiguous"],
+              ["call", "pong", "ambiguous"],
+              ["call", "rebase", "ambiguous"],
+              ["call", "run", "ambiguous"],
+              ["call", "self.describe", "ambiguous"],
+              ["call", "self.run", "ambiguous"],
+              ["call", "tool", "ambiguous"],
+              ["import", "helpers", "exact"],
+              ["import", "os", "exact"],
+              ["import", "package.util", "exact"],
+              ["import", "vendor_lib.core", "exact"],
+              ["import", "vendor_lib.extras", "exact"],
+              ["import", "worker.plugins", "exact"]
+            ],
+            "totalLines": 47
+          }
+        }
+      },
+      "refreshFromCacheAloneDiffersIn": {"payload.warnings": ["Perl: structured parser unavailable; lexical adapter used", "Python: structured parser unavailable; lexical adapter used", "TypeScript: structured parser unavailable; lexical adapter used"]}
+    }
+  }
+}

@@ -1,0 +1,575 @@
+{
+  "generatedBy": "python test/python/dependencies/regenerate_golden.py",
+  "pins": "analyze_file_dependencies; lizard not installed (lexical symbol fallback)",
+  "capabilities": {
+    "Python": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Ruby": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Java": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "C": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "C++": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "C#": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Erlang": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Fortran": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "GDScript": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Go": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "JavaScript": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Kotlin": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Lua": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Objective-C": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "PHP": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Perl": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Scala": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Solidity": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Swift": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "TypeScript": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "TTCN-3": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Vue": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Zig": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"}
+  },
+  "cases": {
+    "fixture corpus: python_sample.py": {
+      "payload": {
+        "schemaVersion": 2,
+        "revision": 0,
+        "targetType": "file",
+        "targetRelativePath": "python_sample.py",
+        "nodes": [
+          {
+            "id": "symbol:042eb1dc1382b440",
+            "kind": "symbol",
+            "symbolKind": "module",
+            "label": "python_sample.py",
+            "relativePath": "python_sample.py",
+            "language": "Python",
+            "external": false,
+            "lineStart": 1,
+            "lineEnd": 3,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:6641e1be5075de0d",
+            "kind": "file",
+            "label": "shared.gd",
+            "relativePath": "shared.gd",
+            "external": false,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          }
+        ],
+        "edges": [{"id": "edge:bc415585c7c62219", "source": "symbol:042eb1dc1382b440", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1}],
+        "warnings": ["python_sample.py: Lizard unavailable (No module named 'lizard'); lexical symbol fallback used"],
+        "capabilities": "<the capabilities block at the top of this document>",
+        "generatedAt": ""
+      }
+    },
+    "fixture corpus: cpp_sample.cpp": {
+      "payload": {
+        "schemaVersion": 2,
+        "revision": 0,
+        "targetType": "file",
+        "targetRelativePath": "cpp_sample.cpp",
+        "nodes": [
+          {
+            "id": "symbol:7b285fe1f881f097",
+            "kind": "symbol",
+            "symbolKind": "module",
+            "label": "cpp_sample.cpp",
+            "relativePath": "cpp_sample.cpp",
+            "language": "C++",
+            "external": false,
+            "lineStart": 1,
+            "lineEnd": 3,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "symbol:3bcbe297b5c313a1",
+            "kind": "symbol",
+            "symbolKind": "class",
+            "label": "CppSample",
+            "relativePath": "cpp_sample.cpp",
+            "language": "C++",
+            "external": false,
+            "ownerId": "symbol:7b285fe1f881f097",
+            "lineStart": 3,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:6641e1be5075de0d",
+            "kind": "file",
+            "label": "shared.gd",
+            "relativePath": "shared.gd",
+            "external": false,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          }
+        ],
+        "edges": [
+          {"id": "edge:ca750f601141afaf", "source": "symbol:7b285fe1f881f097", "target": "symbol:3bcbe297b5c313a1", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:826ce299171c7b92", "source": "symbol:7b285fe1f881f097", "target": "file:6641e1be5075de0d", "kind": "include", "confidence": "exact", "occurrences": 1}
+        ],
+        "warnings": ["cpp_sample.cpp: Lizard unavailable (No module named 'lizard'); lexical symbol fallback used"],
+        "capabilities": "<the capabilities block at the top of this document>",
+        "generatedAt": ""
+      }
+    },
+    "fixture corpus: ttcn_sample.ttcn3": {
+      "payload": {
+        "schemaVersion": 2,
+        "revision": 0,
+        "targetType": "file",
+        "targetRelativePath": "ttcn_sample.ttcn3",
+        "nodes": [
+          {
+            "id": "symbol:34d150637ec0961a",
+            "kind": "symbol",
+            "symbolKind": "module",
+            "label": "ttcn_sample.ttcn3",
+            "relativePath": "ttcn_sample.ttcn3",
+            "language": "TTCN-3",
+            "external": false,
+            "lineStart": 1,
+            "lineEnd": 3,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:6cb90256e0550389",
+            "kind": "external",
+            "label": "from",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:6641e1be5075de0d",
+            "kind": "file",
+            "label": "shared.gd",
+            "relativePath": "shared.gd",
+            "external": false,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          }
+        ],
+        "edges": [
+          {"id": "edge:78038cc568b2ece0", "source": "symbol:34d150637ec0961a", "target": "external:6cb90256e0550389", "kind": "import", "confidence": "exact", "occurrences": 2},
+          {"id": "edge:c5afdcfce6f2e818", "source": "symbol:34d150637ec0961a", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1}
+        ],
+        "warnings": ["ttcn_sample.ttcn3: Lizard unavailable (No module named 'lizard'); lexical symbol fallback used"],
+        "capabilities": "<the capabilities block at the top of this document>",
+        "generatedAt": ""
+      }
+    },
+    "project: worker.py": {
+      "payload": {
+        "schemaVersion": 2,
+        "revision": 0,
+        "targetType": "file",
+        "targetRelativePath": "worker.py",
+        "nodes": [
+          {
+            "id": "symbol:3c5e96565a8b81d1",
+            "kind": "symbol",
+            "symbolKind": "module",
+            "label": "worker.py",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "lineStart": 1,
+            "lineEnd": 47,
+            "metrics": {"totalLines": 47, "fanIn": 0, "fanOut": 12, "degree": 12, "dependentCount": 0, "cycleSize": 0, "relationCount": 13}
+          },
+          {
+            "id": "symbol:33000705f4bdfa9d",
+            "kind": "symbol",
+            "symbolKind": "class",
+            "label": "Base",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:3c5e96565a8b81d1",
+            "lineStart": 9,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 2, "degree": 3, "dependentCount": 1, "cycleSize": 0, "relationCount": 3}
+          },
+          {
+            "id": "symbol:f73d3edf66ee8f7d",
+            "kind": "symbol",
+            "symbolKind": "class",
+            "label": "Worker",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:3c5e96565a8b81d1",
+            "lineStart": 14,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 2, "degree": 3, "dependentCount": 1, "cycleSize": 0, "relationCount": 4}
+          },
+          {
+            "id": "symbol:20220c8ab2d2efcf",
+            "kind": "symbol",
+            "symbolKind": "class",
+            "label": "Late",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:3c5e96565a8b81d1",
+            "lineStart": 41,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 1, "degree": 2, "dependentCount": 1, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "symbol:06511fb2fbd1e30b",
+            "kind": "symbol",
+            "symbolKind": "method",
+            "label": "describe",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:33000705f4bdfa9d",
+            "lineStart": 10,
+            "lineEnd": 13,
+            "metrics": {"totalLines": 4, "fanIn": 1, "fanOut": 1, "degree": 2, "dependentCount": 1, "cycleSize": 0, "relationCount": 2, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "symbol:e806f5725dab4f6f",
+            "kind": "symbol",
+            "symbolKind": "method",
+            "label": "run",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:f73d3edf66ee8f7d",
+            "lineStart": 15,
+            "lineEnd": 19,
+            "metrics": {"totalLines": 5, "fanIn": 1, "fanOut": 1, "degree": 2, "dependentCount": 1, "cycleSize": 0, "relationCount": 2, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "symbol:699fc8d254b671fd",
+            "kind": "symbol",
+            "symbolKind": "method",
+            "label": "again",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:f73d3edf66ee8f7d",
+            "lineStart": 20,
+            "lineEnd": 23,
+            "metrics": {"totalLines": 4, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "symbol:39570242f4db87cb",
+            "kind": "symbol",
+            "symbolKind": "function",
+            "label": "helper",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:3c5e96565a8b81d1",
+            "lineStart": 24,
+            "lineEnd": 29,
+            "metrics": {"totalLines": 6, "fanIn": 4, "fanOut": 1, "degree": 5, "dependentCount": 4, "cycleSize": 0, "relationCount": 5, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "symbol:efe82b494e759c1b",
+            "kind": "symbol",
+            "symbolKind": "function",
+            "label": "ping",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:3c5e96565a8b81d1",
+            "lineStart": 30,
+            "lineEnd": 34,
+            "metrics": {"totalLines": 5, "fanIn": 3, "fanOut": 1, "degree": 3, "dependentCount": 3, "cycleSize": 2, "relationCount": 4, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "symbol:81328e90f7aaab64",
+            "kind": "symbol",
+            "symbolKind": "function",
+            "label": "pong",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:3c5e96565a8b81d1",
+            "lineStart": 35,
+            "lineEnd": 40,
+            "metrics": {"totalLines": 6, "fanIn": 3, "fanOut": 2, "degree": 4, "dependentCount": 3, "cycleSize": 2, "relationCount": 5, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "symbol:3652530f5723cd16",
+            "kind": "symbol",
+            "symbolKind": "function",
+            "label": "inner",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:3c5e96565a8b81d1",
+            "lineStart": 36,
+            "lineEnd": 37,
+            "metrics": {"totalLines": 2, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "symbol:02d72c1a9c9f022d",
+            "kind": "symbol",
+            "symbolKind": "method",
+            "label": "helper",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:20220c8ab2d2efcf",
+            "lineStart": 42,
+            "lineEnd": 45,
+            "metrics": {"totalLines": 4, "fanIn": 1, "fanOut": 2, "degree": 3, "dependentCount": 1, "cycleSize": 0, "relationCount": 3, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "symbol:85cade72dadeebd7",
+            "kind": "symbol",
+            "symbolKind": "method",
+            "label": "rebase",
+            "relativePath": "worker.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:33000705f4bdfa9d",
+            "lineStart": 46,
+            "lineEnd": 47,
+            "metrics": {"totalLines": 2, "fanIn": 2, "fanOut": 1, "degree": 3, "dependentCount": 2, "cycleSize": 0, "relationCount": 3, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "external:a32020618c7ef238",
+            "kind": "external",
+            "label": "os",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:1a3585c6138675e6",
+            "kind": "external",
+            "label": "vendor_lib",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:94413dbe7f7b17e4",
+            "kind": "external",
+            "label": "worker",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:3919fe86bc3efab4",
+            "kind": "file",
+            "label": "helpers.py",
+            "relativePath": "helpers.py",
+            "external": false,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:ed848e06e30b8c6d",
+            "kind": "file",
+            "label": "util.py",
+            "relativePath": "package/util.py",
+            "external": false,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          }
+        ],
+        "edges": [
+          {"id": "edge:a47bcb8e9c718939", "source": "symbol:3c5e96565a8b81d1", "target": "symbol:33000705f4bdfa9d", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:46a0b82315488035", "source": "symbol:3c5e96565a8b81d1", "target": "symbol:f73d3edf66ee8f7d", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:4734a8065b68aedb", "source": "symbol:3c5e96565a8b81d1", "target": "symbol:20220c8ab2d2efcf", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:8636ba9138ef7d3e", "source": "symbol:33000705f4bdfa9d", "target": "symbol:06511fb2fbd1e30b", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:2ca32578112a9c00", "source": "symbol:f73d3edf66ee8f7d", "target": "symbol:e806f5725dab4f6f", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:05a0d13663facecd", "source": "symbol:f73d3edf66ee8f7d", "target": "symbol:699fc8d254b671fd", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:16bab9ba766d942b", "source": "symbol:3c5e96565a8b81d1", "target": "symbol:39570242f4db87cb", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:e1e321c280b6c8d8", "source": "symbol:3c5e96565a8b81d1", "target": "symbol:efe82b494e759c1b", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:fa8713f080d07dbf", "source": "symbol:3c5e96565a8b81d1", "target": "symbol:81328e90f7aaab64", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:dcc9841ad99c25c1", "source": "symbol:3c5e96565a8b81d1", "target": "symbol:3652530f5723cd16", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:be219dd9d8101eb5", "source": "symbol:20220c8ab2d2efcf", "target": "symbol:02d72c1a9c9f022d", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:028745d56c8bc0e4", "source": "symbol:33000705f4bdfa9d", "target": "symbol:85cade72dadeebd7", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:7b4d140519dc1901", "source": "symbol:3c5e96565a8b81d1", "target": "external:a32020618c7ef238", "kind": "import", "confidence": "exact", "occurrences": 2},
+          {"id": "edge:b72f475e58f92138", "source": "symbol:3c5e96565a8b81d1", "target": "file:3919fe86bc3efab4", "kind": "import", "confidence": "exact", "occurrences": 2},
+          {"id": "edge:e32333e5fcf7a0cf", "source": "symbol:3c5e96565a8b81d1", "target": "external:1a3585c6138675e6", "kind": "import", "confidence": "exact", "occurrences": 3},
+          {"id": "edge:56e1c7a111247d65", "source": "symbol:3c5e96565a8b81d1", "target": "file:ed848e06e30b8c6d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:bd3dfcb4a2870d6d", "source": "symbol:3c5e96565a8b81d1", "target": "external:94413dbe7f7b17e4", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:07919f065047f123", "source": "symbol:06511fb2fbd1e30b", "target": "symbol:39570242f4db87cb", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:9cd472977870e490", "source": "symbol:3c5e96565a8b81d1", "target": "symbol:f73d3edf66ee8f7d", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:2ecf67c03ea30809", "source": "symbol:e806f5725dab4f6f", "target": "symbol:39570242f4db87cb", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:3faaefbb20f69030", "source": "symbol:39570242f4db87cb", "target": "symbol:81328e90f7aaab64", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:d134b4e89f8cebe6", "source": "symbol:efe82b494e759c1b", "target": "symbol:81328e90f7aaab64", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:46186c2538e59184", "source": "symbol:81328e90f7aaab64", "target": "symbol:3652530f5723cd16", "kind": "call", "confidence": "ambiguous", "occurrences": 2},
+          {"id": "edge:803a050761484acd", "source": "symbol:81328e90f7aaab64", "target": "symbol:efe82b494e759c1b", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:ba5e57c6d858c643", "source": "symbol:02d72c1a9c9f022d", "target": "symbol:39570242f4db87cb", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:f96caf2f7b46b23b", "source": "symbol:02d72c1a9c9f022d", "target": "symbol:85cade72dadeebd7", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:dbe18864819453dd", "source": "symbol:85cade72dadeebd7", "target": "symbol:efe82b494e759c1b", "kind": "call", "confidence": "ambiguous", "occurrences": 1}
+        ],
+        "warnings": ["worker.py: Lizard unavailable (No module named 'lizard'); lexical symbol fallback used"],
+        "capabilities": "<the capabilities block at the top of this document>",
+        "generatedAt": ""
+      }
+    },
+    "project: shapes.ts": {
+      "payload": {
+        "schemaVersion": 2,
+        "revision": 0,
+        "targetType": "file",
+        "targetRelativePath": "shapes.ts",
+        "nodes": [
+          {
+            "id": "symbol:174b92869fdf7c3b",
+            "kind": "symbol",
+            "symbolKind": "module",
+            "label": "shapes.ts",
+            "relativePath": "shapes.ts",
+            "language": "TypeScript",
+            "external": false,
+            "lineStart": 1,
+            "lineEnd": 22,
+            "metrics": {"totalLines": 22, "fanIn": 0, "fanOut": 8, "degree": 8, "dependentCount": 0, "cycleSize": 0, "relationCount": 8}
+          },
+          {
+            "id": "symbol:0fc125722a66dca5",
+            "kind": "symbol",
+            "symbolKind": "interface",
+            "label": "Shape",
+            "relativePath": "shapes.ts",
+            "language": "TypeScript",
+            "external": false,
+            "ownerId": "symbol:174b92869fdf7c3b",
+            "lineStart": 6,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "symbol:60c69b46daf29131",
+            "kind": "symbol",
+            "symbolKind": "class",
+            "label": "Circle",
+            "relativePath": "shapes.ts",
+            "language": "TypeScript",
+            "external": false,
+            "ownerId": "symbol:174b92869fdf7c3b",
+            "lineStart": 10,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 2, "degree": 3, "dependentCount": 1, "cycleSize": 0, "relationCount": 3}
+          },
+          {
+            "id": "symbol:b07f24fef848070c",
+            "kind": "symbol",
+            "symbolKind": "method",
+            "label": "compute",
+            "relativePath": "shapes.ts",
+            "language": "TypeScript",
+            "external": false,
+            "ownerId": "symbol:60c69b46daf29131",
+            "lineStart": 16,
+            "lineEnd": 16,
+            "metrics": {"totalLines": 1, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "symbol:3bb8854fd18189ab",
+            "kind": "symbol",
+            "symbolKind": "method",
+            "label": "standalone",
+            "relativePath": "shapes.ts",
+            "language": "TypeScript",
+            "external": false,
+            "ownerId": "symbol:60c69b46daf29131",
+            "lineStart": 20,
+            "lineEnd": 20,
+            "metrics": {"totalLines": 1, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "external:4020ebf55ab37c9d",
+            "kind": "external",
+            "label": "fs",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:95910421b3d2bc9e",
+            "kind": "external",
+            "label": "../outside",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:b3d557e43b720281",
+            "kind": "external",
+            "label": "Base",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:c8714330c62979f6",
+            "kind": "external",
+            "label": "Shape",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:c721056b5b88ec13",
+            "kind": "file",
+            "label": "geometry.ts",
+            "relativePath": "geometry.ts",
+            "external": false,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          }
+        ],
+        "edges": [
+          {"id": "edge:23885586d3d429fd", "source": "symbol:174b92869fdf7c3b", "target": "symbol:0fc125722a66dca5", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:c84f01866c332539", "source": "symbol:174b92869fdf7c3b", "target": "symbol:60c69b46daf29131", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:d7a0410c24cb82a5", "source": "symbol:60c69b46daf29131", "target": "symbol:b07f24fef848070c", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:fa74baacf1c720a0", "source": "symbol:60c69b46daf29131", "target": "symbol:3bb8854fd18189ab", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:d7bc99310b152549", "source": "symbol:174b92869fdf7c3b", "target": "external:4020ebf55ab37c9d", "kind": "import", "confidence": "exact", "occurrences": 4},
+          {"id": "edge:651dd2741876ba53", "source": "symbol:174b92869fdf7c3b", "target": "file:c721056b5b88ec13", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:27962323a35fc70c", "source": "symbol:174b92869fdf7c3b", "target": "external:95910421b3d2bc9e", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:d6ca9d06b84cfb27", "source": "symbol:174b92869fdf7c3b", "target": "external:b3d557e43b720281", "kind": "inheritance", "confidence": "probable", "occurrences": 1},
+          {"id": "edge:8aa22f1b638c2683", "source": "symbol:174b92869fdf7c3b", "target": "external:c8714330c62979f6", "kind": "implementation", "confidence": "probable", "occurrences": 1},
+          {"id": "edge:fffcd878c11426cf", "source": "symbol:174b92869fdf7c3b", "target": "symbol:b07f24fef848070c", "kind": "call", "confidence": "ambiguous", "occurrences": 2}
+        ],
+        "warnings": ["shapes.ts: Lizard unavailable (No module named 'lizard'); lexical symbol fallback used"],
+        "capabilities": "<the capabilities block at the top of this document>",
+        "generatedAt": ""
+      }
+    },
+    "project: package/util.py": {
+      "payload": {
+        "schemaVersion": 2,
+        "revision": 0,
+        "targetType": "file",
+        "targetRelativePath": "package/util.py",
+        "nodes": [
+          {
+            "id": "symbol:93c06f5456831637",
+            "kind": "symbol",
+            "symbolKind": "module",
+            "label": "util.py",
+            "relativePath": "package/util.py",
+            "language": "Python",
+            "external": false,
+            "lineStart": 1,
+            "lineEnd": 5,
+            "metrics": {"totalLines": 5, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "symbol:105e4fcb904d494d",
+            "kind": "symbol",
+            "symbolKind": "function",
+            "label": "tool",
+            "relativePath": "package/util.py",
+            "language": "Python",
+            "external": false,
+            "ownerId": "symbol:93c06f5456831637",
+            "lineStart": 4,
+            "lineEnd": 5,
+            "metrics": {"totalLines": 2, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1, "complexity": 0.0, "parameters": 0, "nestingDepth": 0}
+          },
+          {
+            "id": "file:3919fe86bc3efab4",
+            "kind": "file",
+            "label": "helpers.py",
+            "relativePath": "helpers.py",
+            "external": false,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          }
+        ],
+        "edges": [
+          {"id": "edge:ccbb42390f5caeff", "source": "symbol:93c06f5456831637", "target": "symbol:105e4fcb904d494d", "kind": "contains", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:08928194463f4996", "source": "symbol:93c06f5456831637", "target": "file:3919fe86bc3efab4", "kind": "import", "confidence": "exact", "occurrences": 2}
+        ],
+        "warnings": ["package/util.py: Lizard unavailable (No module named 'lizard'); lexical symbol fallback used"],
+        "capabilities": "<the capabilities block at the top of this document>",
+        "generatedAt": ""
+      }
+    }
+  }
+}

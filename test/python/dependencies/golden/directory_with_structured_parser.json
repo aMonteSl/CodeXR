@@ -1,0 +1,789 @@
+{
+  "generatedBy": "python test/python/dependencies/regenerate_golden.py",
+  "pins": "analyze_dependencies; fake tree_sitter_language_pack (see fake_structured_parser)",
+  "capabilities": {
+    "Python": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Ruby": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Java": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "C": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "C++": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "C#": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Erlang": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Fortran": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "GDScript": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Go": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "JavaScript": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Kotlin": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Lua": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Objective-C": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "PHP": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Perl": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Scala": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Solidity": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Swift": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "TypeScript": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "TTCN-3": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Vue": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"},
+    "Zig": {"import": "exact", "include": "exact", "require": "exact", "inheritance": "best-effort", "implementation": "best-effort", "call": "best-effort", "contains": "exact"}
+  },
+  "cases": {
+    "fixture corpus, recursive": {
+      "payload": {
+        "schemaVersion": 2,
+        "revision": 0,
+        "targetType": "directory",
+        "targetRelativePath": "",
+        "nodes": [
+          {
+            "id": "file:470666cc067a6657",
+            "kind": "file",
+            "label": "c_sample.c",
+            "relativePath": "c_sample.c",
+            "language": "C",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 3, "degree": 3, "dependentCount": 0, "cycleSize": 0, "relationCount": 3}
+          },
+          {
+            "id": "file:9f969f37c5e8280c",
+            "kind": "file",
+            "label": "cpp_sample.cpp",
+            "relativePath": "cpp_sample.cpp",
+            "language": "C++",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:2b0aa2e86c303b58",
+            "kind": "file",
+            "label": "csharp_sample.cs",
+            "relativePath": "csharp_sample.cs",
+            "language": "C#",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:ffb9ab0b33830235",
+            "kind": "file",
+            "label": "erlang_sample.erl",
+            "relativePath": "erlang_sample.erl",
+            "language": "Erlang",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 4, "degree": 4, "dependentCount": 0, "cycleSize": 0, "relationCount": 4}
+          },
+          {
+            "id": "file:1436ffa75225a2b7",
+            "kind": "file",
+            "label": "fortran_sample.f90",
+            "relativePath": "fortran_sample.f90",
+            "language": "Fortran",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:5e39f0919f41d055",
+            "kind": "file",
+            "label": "gdscript_sample.gd",
+            "relativePath": "gdscript_sample.gd",
+            "language": "GDScript",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:60c155e8ca7d3967",
+            "kind": "file",
+            "label": "go_sample.go",
+            "relativePath": "go_sample.go",
+            "language": "Go",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:369ea4f3af27e2f1",
+            "kind": "file",
+            "label": "java_sample.java",
+            "relativePath": "java_sample.java",
+            "language": "Java",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:9e742978a5153513",
+            "kind": "file",
+            "label": "javascript_sample.js",
+            "relativePath": "javascript_sample.js",
+            "language": "JavaScript",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 3}
+          },
+          {
+            "id": "file:73e668d876479067",
+            "kind": "file",
+            "label": "kotlin_sample.kt",
+            "relativePath": "kotlin_sample.kt",
+            "language": "Kotlin",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:ac323b2df0056ab4",
+            "kind": "file",
+            "label": "lua_sample.lua",
+            "relativePath": "lua_sample.lua",
+            "language": "Lua",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 3, "degree": 3, "dependentCount": 0, "cycleSize": 0, "relationCount": 3}
+          },
+          {
+            "id": "file:a08d9a6f4d296d73",
+            "kind": "file",
+            "label": "objective_c_sample.m",
+            "relativePath": "objective_c_sample.m",
+            "language": "Objective-C",
+            "external": false,
+            "metrics": {"totalLines": 4, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:42568df4bf38dd61",
+            "kind": "file",
+            "label": "perl_sample.pl",
+            "relativePath": "perl_sample.pl",
+            "language": "Perl",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:b7ef539df218ba55",
+            "kind": "file",
+            "label": "php_sample.php",
+            "relativePath": "php_sample.php",
+            "language": "PHP",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:4fda496611e737b0",
+            "kind": "file",
+            "label": "python_sample.py",
+            "relativePath": "python_sample.py",
+            "language": "Python",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 3}
+          },
+          {
+            "id": "file:40fa3a7258ec61f0",
+            "kind": "file",
+            "label": "ruby_sample.rb",
+            "relativePath": "ruby_sample.rb",
+            "language": "Ruby",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:8df40a7c772cc895",
+            "kind": "file",
+            "label": "scala_sample.scala",
+            "relativePath": "scala_sample.scala",
+            "language": "Scala",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:6641e1be5075de0d",
+            "kind": "file",
+            "label": "shared.gd",
+            "relativePath": "shared.gd",
+            "language": "GDScript",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 24, "fanOut": 2, "degree": 26, "dependentCount": 24, "cycleSize": 0, "relationCount": 29}
+          },
+          {
+            "id": "file:1de33a684cee256c",
+            "kind": "file",
+            "label": "shared.h",
+            "relativePath": "shared.h",
+            "language": "C",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:280e0fc317b8e28b",
+            "kind": "file",
+            "label": "shared.hrl",
+            "relativePath": "shared.hrl",
+            "language": "Erlang",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:b3debe8e1798211d",
+            "kind": "file",
+            "label": "shared.php",
+            "relativePath": "shared.php",
+            "language": "PHP",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:a33ca3bfc7b8117f",
+            "kind": "file",
+            "label": "shared.py",
+            "relativePath": "shared.py",
+            "language": "Python",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:d409b7e8c56589fd",
+            "kind": "file",
+            "label": "shared.sol",
+            "relativePath": "shared.sol",
+            "language": "Solidity",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:619612819f515a06",
+            "kind": "file",
+            "label": "shared.zig",
+            "relativePath": "shared.zig",
+            "language": "Zig",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 0, "degree": 0, "dependentCount": 0, "cycleSize": 0, "relationCount": 0}
+          },
+          {
+            "id": "file:1ac6f6aa245aff02",
+            "kind": "file",
+            "label": "solidity_sample.sol",
+            "relativePath": "solidity_sample.sol",
+            "language": "Solidity",
+            "external": false,
+            "metrics": {"totalLines": 2, "fanIn": 0, "fanOut": 1, "degree": 1, "dependentCount": 0, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "file:45105192ce986a97",
+            "kind": "file",
+            "label": "swift_sample.swift",
+            "relativePath": "swift_sample.swift",
+            "language": "Swift",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:fabe4c388afa493a",
+            "kind": "file",
+            "label": "ttcn_sample.ttcn3",
+            "relativePath": "ttcn_sample.ttcn3",
+            "language": "TTCN-3",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:a7690be986feb0a9",
+            "kind": "file",
+            "label": "typescript_sample.ts",
+            "relativePath": "typescript_sample.ts",
+            "language": "TypeScript",
+            "external": false,
+            "metrics": {"totalLines": 3, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 3}
+          },
+          {
+            "id": "file:54c1b7fa92a4c3f3",
+            "kind": "file",
+            "label": "vue_sample.vue",
+            "relativePath": "vue_sample.vue",
+            "language": "Vue",
+            "external": false,
+            "metrics": {"totalLines": 4, "fanIn": 0, "fanOut": 2, "degree": 2, "dependentCount": 0, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "file:eb57b8669c84c88e",
+            "kind": "file",
+            "label": "zig_sample.zig",
+            "relativePath": "zig_sample.zig",
+            "language": "Zig",
+            "external": false,
+            "metrics": {"totalLines": 1, "fanIn": 0, "fanOut": 3, "degree": 3, "dependentCount": 0, "cycleSize": 0, "relationCount": 3}
+          },
+          {
+            "id": "external:58aaa9e84ca96f45",
+            "kind": "external",
+            "label": "shared_value",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 3, "fanOut": 0, "degree": 3, "dependentCount": 3, "cycleSize": 0, "relationCount": 3}
+          },
+          {
+            "id": "external:9c4587a06005adcc",
+            "kind": "external",
+            "label": "structured_c",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:be3c47e2d27453d2",
+            "kind": "external",
+            "label": "structured_cpp",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:25bc910cf6a63df4",
+            "kind": "external",
+            "label": "structured_csharp",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:cbf24799490c0808",
+            "kind": "external",
+            "label": "include",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:788d0e9bba34cdd3",
+            "kind": "external",
+            "label": "module",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:91366aaea82bc43b",
+            "kind": "external",
+            "label": "structured_erlang",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:f54078a234ffc8d1",
+            "kind": "external",
+            "label": "structured_fortran",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:d3fa2fa017b61221",
+            "kind": "external",
+            "label": "structured_gdscript",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:2c5abe17070f17dd",
+            "kind": "external",
+            "label": "structured_go",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:1931a6af0d7a8940",
+            "kind": "external",
+            "label": "structured_java",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:2cbcbcf4f9b60dec",
+            "kind": "external",
+            "label": "structured_javascript",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:4a8d5a5ab68a58c6",
+            "kind": "external",
+            "label": "structured_kotlin",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:54a38326a856cf82",
+            "kind": "external",
+            "label": "require",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:220e5ba8c09f400a",
+            "kind": "external",
+            "label": "structured_lua",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:fdf726fb3f765667",
+            "kind": "external",
+            "label": "structured_objc",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:9de14b93cd866abd",
+            "kind": "external",
+            "label": "structured_perl",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:a2035e8e5d7556bf",
+            "kind": "external",
+            "label": "structured_php",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:8079ffe6ae90de51",
+            "kind": "external",
+            "label": "structured_python",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 2, "fanOut": 0, "degree": 2, "dependentCount": 2, "cycleSize": 0, "relationCount": 2}
+          },
+          {
+            "id": "external:00cfa97d576032a5",
+            "kind": "external",
+            "label": "structured_ruby",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:2b758d74be8971f1",
+            "kind": "external",
+            "label": "structured_scala",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:e7488f7618b91ecc",
+            "kind": "external",
+            "label": "Node",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:7ea5112f6bf300aa",
+            "kind": "external",
+            "label": "define",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:f31e05e1c4816001",
+            "kind": "external",
+            "label": "structured_solidity",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:5b4d5b2248076d80",
+            "kind": "external",
+            "label": "structured_swift",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:6cb90256e0550389",
+            "kind": "external",
+            "label": "from",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:4fba6cb17d635f86",
+            "kind": "external",
+            "label": "structured_typescript",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:980a0d78914742ee",
+            "kind": "external",
+            "label": "structured_vue",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:80fb7bd4e2f9c3c5",
+            "kind": "external",
+            "label": "import",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          },
+          {
+            "id": "external:136e22ee7a510a2b",
+            "kind": "external",
+            "label": "structured_zig",
+            "external": true,
+            "metrics": {"totalLines": 0, "fanIn": 1, "fanOut": 0, "degree": 1, "dependentCount": 1, "cycleSize": 0, "relationCount": 1}
+          }
+        ],
+        "edges": [
+          {"id": "edge:e462081c35f36e7d", "source": "file:470666cc067a6657", "target": "external:58aaa9e84ca96f45", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:f4d5aac88bfcc603", "source": "file:470666cc067a6657", "target": "external:9c4587a06005adcc", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:343a1d4e515cf537", "source": "file:470666cc067a6657", "target": "file:6641e1be5075de0d", "kind": "include", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:c44850b2393408f6", "source": "file:9f969f37c5e8280c", "target": "external:be3c47e2d27453d2", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:f54edb1f8153ebe6", "source": "file:9f969f37c5e8280c", "target": "file:6641e1be5075de0d", "kind": "include", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:168c54d7ea6385ab", "source": "file:2b0aa2e86c303b58", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:d63d32aae78b7540", "source": "file:2b0aa2e86c303b58", "target": "external:25bc910cf6a63df4", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:f71907b99fa35b15", "source": "file:ffb9ab0b33830235", "target": "external:cbf24799490c0808", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:89fdad0a96838648", "source": "file:ffb9ab0b33830235", "target": "external:788d0e9bba34cdd3", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:902d4dbb43b1a733", "source": "file:ffb9ab0b33830235", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:2dd70c279b43dffb", "source": "file:ffb9ab0b33830235", "target": "external:91366aaea82bc43b", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:298e29fd1ef98ca6", "source": "file:1436ffa75225a2b7", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:aafd78887b1e5e90", "source": "file:1436ffa75225a2b7", "target": "external:f54078a234ffc8d1", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:4929e16a13140aa9", "source": "file:5e39f0919f41d055", "target": "external:d3fa2fa017b61221", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:24d3ec25d4854bd3", "source": "file:5e39f0919f41d055", "target": "file:6641e1be5075de0d", "kind": "inheritance", "confidence": "probable", "occurrences": 1},
+          {"id": "edge:ea0150dcff03226f", "source": "file:60c155e8ca7d3967", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:fad96479ca96f812", "source": "file:60c155e8ca7d3967", "target": "external:2c5abe17070f17dd", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:defb7f61e88e4de2", "source": "file:369ea4f3af27e2f1", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:a47d461bd31d6fc8", "source": "file:369ea4f3af27e2f1", "target": "external:1931a6af0d7a8940", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:90c402781a656d82", "source": "file:9e742978a5153513", "target": "file:6641e1be5075de0d", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:12e1cb318063010b", "source": "file:9e742978a5153513", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 2},
+          {"id": "edge:14ba561d0bbcfe2a", "source": "file:9e742978a5153513", "target": "external:2cbcbcf4f9b60dec", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:da250c8e89899f80", "source": "file:73e668d876479067", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:84b283a7494835cb", "source": "file:73e668d876479067", "target": "external:4a8d5a5ab68a58c6", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:07fe4dca261c305f", "source": "file:ac323b2df0056ab4", "target": "external:54a38326a856cf82", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:6e3465c22308279d", "source": "file:ac323b2df0056ab4", "target": "external:220e5ba8c09f400a", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:2ebd89b99b4f73f1", "source": "file:ac323b2df0056ab4", "target": "file:6641e1be5075de0d", "kind": "require", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:2c420af1b1def1ca", "source": "file:a08d9a6f4d296d73", "target": "external:fdf726fb3f765667", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:72f8c83be0239d8a", "source": "file:a08d9a6f4d296d73", "target": "file:6641e1be5075de0d", "kind": "include", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:6c22d8890c8b7303", "source": "file:42568df4bf38dd61", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:a892a67d5fdb7eaf", "source": "file:42568df4bf38dd61", "target": "external:9de14b93cd866abd", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:7cda88fde88a71d4", "source": "file:b7ef539df218ba55", "target": "external:a2035e8e5d7556bf", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:9daac0d0c77a001d", "source": "file:b7ef539df218ba55", "target": "file:6641e1be5075de0d", "kind": "require", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:97f09ee5eb207436", "source": "file:4fda496611e737b0", "target": "file:6641e1be5075de0d", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:b112d3f6d57730ec", "source": "file:4fda496611e737b0", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:81482a6535376a3e", "source": "file:4fda496611e737b0", "target": "external:8079ffe6ae90de51", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:6324e8e73abb2466", "source": "file:40fa3a7258ec61f0", "target": "external:00cfa97d576032a5", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:b8a8aeb17e862d3c", "source": "file:40fa3a7258ec61f0", "target": "file:6641e1be5075de0d", "kind": "require", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:cbe13a5d2a67a684", "source": "file:8df40a7c772cc895", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:e3491d38a5c94bd8", "source": "file:8df40a7c772cc895", "target": "external:2b758d74be8971f1", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:849f07fe4e0e2c2e", "source": "file:6641e1be5075de0d", "target": "external:d3fa2fa017b61221", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:f96ab00ec941ce3b", "source": "file:6641e1be5075de0d", "target": "external:e7488f7618b91ecc", "kind": "inheritance", "confidence": "probable", "occurrences": 1},
+          {"id": "edge:b1e35047d5a4ee43", "source": "file:1de33a684cee256c", "target": "external:58aaa9e84ca96f45", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:749909118de4a057", "source": "file:1de33a684cee256c", "target": "external:9c4587a06005adcc", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:a774c5926e794ee6", "source": "file:280e0fc317b8e28b", "target": "external:7ea5112f6bf300aa", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:3d16cc97623ba13d", "source": "file:280e0fc317b8e28b", "target": "external:91366aaea82bc43b", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:d3914499dce24f7c", "source": "file:b3debe8e1798211d", "target": "external:58aaa9e84ca96f45", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:95755ceda982c8ea", "source": "file:b3debe8e1798211d", "target": "external:a2035e8e5d7556bf", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:1efd7e5450c0ff99", "source": "file:a33ca3bfc7b8117f", "target": "file:6641e1be5075de0d", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:1d7903e0c3ed3d22", "source": "file:a33ca3bfc7b8117f", "target": "external:8079ffe6ae90de51", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:7591036459cde1b7", "source": "file:d409b7e8c56589fd", "target": "external:f31e05e1c4816001", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:131bdea2bd2f09d6", "source": "file:1ac6f6aa245aff02", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:b9e1fec39b4da14c", "source": "file:45105192ce986a97", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:4d474218639aa426", "source": "file:45105192ce986a97", "target": "external:5b4d5b2248076d80", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:9877cddc0c80664e", "source": "file:fabe4c388afa493a", "target": "external:6cb90256e0550389", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:3938c4e5cd27fc91", "source": "file:fabe4c388afa493a", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:f47bbcb6fc85e7db", "source": "file:a7690be986feb0a9", "target": "file:6641e1be5075de0d", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:9bded66912b2aab2", "source": "file:a7690be986feb0a9", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 2},
+          {"id": "edge:e88c205d979f16b1", "source": "file:a7690be986feb0a9", "target": "external:4fba6cb17d635f86", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:726f88119e15df66", "source": "file:54c1b7fa92a4c3f3", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 2},
+          {"id": "edge:e70a27296be7f833", "source": "file:54c1b7fa92a4c3f3", "target": "external:980a0d78914742ee", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:601f066c7293619e", "source": "file:eb57b8669c84c88e", "target": "external:80fb7bd4e2f9c3c5", "kind": "call", "confidence": "ambiguous", "occurrences": 1},
+          {"id": "edge:7cc95b4d122c1940", "source": "file:eb57b8669c84c88e", "target": "file:6641e1be5075de0d", "kind": "import", "confidence": "exact", "occurrences": 1},
+          {"id": "edge:9b1a8c2ecdf14491", "source": "file:eb57b8669c84c88e", "target": "external:136e22ee7a510a2b", "kind": "import", "confidence": "exact", "occurrences": 1}
+        ],
+        "warnings": ["TTCN-3: structured parser unavailable; lexical adapter used", "Zig: structured parser unavailable; lexical adapter used"],
+        "capabilities": "<the capabilities block at the top of this document>",
+        "generatedAt": ""
+      },
+      "cache": {
+        "version": 3,
+        "root": "<root>",
+        "files": {
+          "c_sample.c": {
+            "hash": "89345fa273af551869f27217d7f804e0224725c8e5a4334377f45c859df21d91",
+            "language": "C",
+            "parserAvailable": true,
+            "targets": [["call", "c_sample", "ambiguous"], ["call", "shared_value", "ambiguous"], ["import", "structured_c", "exact"], ["include", "shared.h", "exact"]],
+            "totalLines": 3
+          },
+          "cpp_sample.cpp": {
+            "hash": "58c26735703363acfe376ddd0301eb1dd14744168791e0286a27f657e17b51e6",
+            "language": "C++",
+            "parserAvailable": true,
+            "targets": [["import", "structured_cpp", "exact"], ["include", "shared.h", "exact"]],
+            "totalLines": 3
+          },
+          "csharp_sample.cs": {
+            "hash": "c594984c3ee6be45eac841ecbd3e2c0116fe05b42e1a00348524dc4f000d191a",
+            "language": "C#",
+            "parserAvailable": true,
+            "targets": [["import", "shared", "exact"], ["import", "structured_csharp", "exact"]],
+            "totalLines": 3
+          },
+          "erlang_sample.erl": {
+            "hash": "4ad923bfa5e8d81cdae5a54050ab69a83a1956e06b799b9555964458db9d7080",
+            "language": "Erlang",
+            "parserAvailable": true,
+            "targets": [["call", "include", "ambiguous"], ["call", "module", "ambiguous"], ["import", "shared.hrl", "exact"], ["import", "structured_erlang", "exact"]],
+            "totalLines": 3
+          },
+          "fortran_sample.f90": {
+            "hash": "7bfd269269b9d6628aecc3b936dcc474c4a8e37948e910771c1d10718483b448",
+            "language": "Fortran",
+            "parserAvailable": true,
+            "targets": [["import", "shared", "exact"], ["import", "structured_fortran", "exact"]],
+            "totalLines": 3
+          },
+          "gdscript_sample.gd": {
+            "hash": "551d02b1f65ccc5d29216c17dc08397f73ea02c29c8a88a642dd7accd687c568",
+            "language": "GDScript",
+            "parserAvailable": true,
+            "targets": [["import", "structured_gdscript", "exact"], ["inheritance", "shared.gd", "probable"]],
+            "totalLines": 1
+          },
+          "go_sample.go": {
+            "hash": "a7224e1d3a0074728473a6c27ee871021118addada77dc75193b3bde369d0edb",
+            "language": "Go",
+            "parserAvailable": true,
+            "targets": [["import", "shared", "exact"], ["import", "structured_go", "exact"]],
+            "totalLines": 3
+          },
+          "java_sample.java": {
+            "hash": "7f00fa64a1c683b8a4fc4a4d1ffac651c1a09d66cedefc721600ca04f897f376",
+            "language": "Java",
+            "parserAvailable": true,
+            "targets": [["import", "shared", "exact"], ["import", "structured_java", "exact"]],
+            "totalLines": 3
+          },
+          "javascript_sample.js": {
+            "hash": "c5475eceeb05830d64c566830b11890f48afcef90ede873b3c5f0ce700825d31",
+            "language": "JavaScript",
+            "parserAvailable": true,
+            "targets": [["call", "shared", "ambiguous"], ["import", "./shared", "exact"], ["import", "shared", "exact"], ["import", "structured_javascript", "exact"]],
+            "totalLines": 3
+          },
+          "kotlin_sample.kt": {
+            "hash": "8144e3e46b50708e32701932224bb352c4f594afc20a6cda9a9de84b644a131e",
+            "language": "Kotlin",
+            "parserAvailable": true,
+            "targets": [["import", "shared", "exact"], ["import", "structured_kotlin", "exact"]],
+            "totalLines": 3
+          },
+          "lua_sample.lua": {
+            "hash": "471867e442e3ad356474b5e5156d7416594ecec5a0f157f1fce888552e16adb5",
+            "language": "Lua",
+            "parserAvailable": true,
+            "targets": [["call", "require", "ambiguous"], ["import", "structured_lua", "exact"], ["require", "shared", "exact"]],
+            "totalLines": 1
+          },
+          "objective_c_sample.m": {
+            "hash": "19839b5a67be47a5e7b9113f473c1429ab878bb8ea893da5b2ea9b2273361206",
+            "language": "Objective-C",
+            "parserAvailable": true,
+            "targets": [["import", "structured_objc", "exact"], ["include", "shared.h", "exact"]],
+            "totalLines": 4
+          },
+          "perl_sample.pl": {
+            "hash": "13139527f36313a7be4be6d93c29f7d7e9e32540a430a964cea2e5ebceccb0a7",
+            "language": "Perl",
+            "parserAvailable": true,
+            "targets": [["import", "shared", "exact"], ["import", "structured_perl", "exact"]],
+            "totalLines": 1
+          },
+          "php_sample.php": {
+            "hash": "8edab718953e05beafcbd09f2e980fad9412bd250523e2deaf363ade06d40b71",
+            "language": "PHP",
+            "parserAvailable": true,
+            "targets": [["import", "structured_php", "exact"], ["require", "shared.php", "exact"]],
+            "totalLines": 2
+          },
+          "python_sample.py": {
+            "hash": "8016e8bfea3eb7ffac05ac62d35f98b4d256026a6183f90c5925cd34d5bc1ea0",
+            "language": "Python",
+            "parserAvailable": true,
+            "targets": [["call", "shared", "ambiguous"], ["import", "shared", "exact"], ["import", "structured_python", "exact"]],
+            "totalLines": 3
+          },
+          "ruby_sample.rb": {
+            "hash": "9449b4aecb6f06a91bb009d962663430d8b9b0dbf7e0ff0fdd8dd24224418679",
+            "language": "Ruby",
+            "parserAvailable": true,
+            "targets": [["import", "structured_ruby", "exact"], ["require", "shared", "exact"]],
+            "totalLines": 1
+          },
+          "scala_sample.scala": {
+            "hash": "88970c22cb4ab8b9627c13c7aa5f0758f60fc003277e938eeeb499a70f610a85",
+            "language": "Scala",
+            "parserAvailable": true,
+            "targets": [["import", "shared", "exact"], ["import", "structured_scala", "exact"]],
+            "totalLines": 3
+          },
+          "shared.gd": {
+            "hash": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+            "language": "GDScript",
+            "parserAvailable": true,
+            "targets": [["import", "structured_gdscript", "exact"], ["inheritance", "Node", "probable"]],
+            "totalLines": 1
+          },
+          "shared.h": {
+            "hash": "1ef31ed3974cfa8fa4b88c4233ceee3382dc731ff06c43275fbcc480055eea43",
+            "language": "C",
+            "parserAvailable": true,
+            "targets": [["call", "shared_value", "ambiguous"], ["import", "structured_c", "exact"]],
+            "totalLines": 1
+          },
+          "shared.hrl": {
+            "hash": "c6a50ebd2e60aa7d4ddffa4a11b067f791e0a4b4fe45a4fdc89375a1a87c9287",
+            "language": "Erlang",
+            "parserAvailable": true,
+            "targets": [["call", "define", "ambiguous"], ["import", "structured_erlang", "exact"]],
+            "totalLines": 1
+          },
+          "shared.php": {
+            "hash": "8099298c03103d48345612a499e737692de5cabdb411529a5acad8b09b1a8a50",
+            "language": "PHP",
+            "parserAvailable": true,
+            "targets": [["call", "shared_value", "ambiguous"], ["import", "structured_php", "exact"]],
+            "totalLines": 2
+          },
+          "shared.py": {
+            "hash": "e05162f4fa455e4f61d27fbfab1fa114d0013f132fcd2cb142ade4b4daa0010c",
+            "language": "Python",
+            "parserAvailable": true,
+            "targets": [["call", "shared", "ambiguous"], ["import", "structured_python", "exact"]],
+            "totalLines": 2
+          },
+          "shared.sol": {"hash": "b8be27f0a58e8fe5f1e63a2aa55e0323da9cd4f255827c7cdef20204f83368a6", "language": "Solidity", "parserAvailable": true, "targets": [["import", "structured_solidity", "exact"]], "totalLines": 2},
+          "shared.zig": {"hash": "bd48733c067d18047717fc8584d7eb6f09c2b4c838c798a80f336879e1fe57ee", "language": "Zig", "parserAvailable": false, "targets": [], "totalLines": 1},
+          "solidity_sample.sol": {"hash": "c19c716ecaa514c74cc5d219dbe22ddf25331f935e89a3d34dad4c733f670c25", "language": "Solidity", "parserAvailable": false, "targets": [["import", "./shared.sol", "exact"]], "totalLines": 2},
+          "swift_sample.swift": {
+            "hash": "e581d7fa74d6ef06816a88f3c8b05099ad348ae6e85499499a572e7cc8190152",
+            "language": "Swift",
+            "parserAvailable": true,
+            "targets": [["import", "shared", "exact"], ["import", "structured_swift", "exact"]],
+            "totalLines": 3
+          },
+          "ttcn_sample.ttcn3": {
+            "hash": "bce72cc1b28a0af133a4d8b0d36dd63e8450e5ff01e48f699e6189604a708f60",
+            "language": "TTCN-3",
+            "parserAvailable": false,
+            "targets": [["import", "from", "exact"], ["import", "shared", "exact"]],
+            "totalLines": 3
+          },
+          "typescript_sample.ts": {
+            "hash": "c5475eceeb05830d64c566830b11890f48afcef90ede873b3c5f0ce700825d31",
+            "language": "TypeScript",
+            "parserAvailable": true,
+            "targets": [["call", "shared", "ambiguous"], ["import", "./shared", "exact"], ["import", "shared", "exact"], ["import", "structured_typescript", "exact"]],
+            "totalLines": 3
+          },
+          "vue_sample.vue": {
+            "hash": "2725aae5ac0232ce3ada850f7173fc19c152d98eb884216c3e9e5b207f8c6ba0",
+            "language": "Vue",
+            "parserAvailable": true,
+            "targets": [["import", "./shared", "exact"], ["import", "shared", "exact"], ["import", "structured_vue", "exact"]],
+            "totalLines": 4
+          },
+          "zig_sample.zig": {
+            "hash": "9f494d59cb98cc11ad3a1b29949c4693d01e5741ac3f27b19c913935e9715128",
+            "language": "Zig",
+            "parserAvailable": true,
+            "targets": [["call", "import", "ambiguous"], ["import", "shared.zig", "exact"], ["import", "structured_zig", "exact"]],
+            "totalLines": 1
+          }
+        }
+      },
+      "refreshFromCacheAloneDiffersIn": {}
+    }
+  }
+}
