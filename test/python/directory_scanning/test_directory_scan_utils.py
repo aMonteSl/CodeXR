@@ -1,10 +1,17 @@
 import importlib.util
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-SCAN_UTILS_PATH = PROJECT_ROOT / 'src' / 'code_analysis' / 'python' / 'utils' / 'directory_scan_utils.py'
+UTILS_ROOT = PROJECT_ROOT / 'src' / 'code_analysis' / 'python' / 'utils'
+SCAN_UTILS_PATH = UTILS_ROOT / 'directory_scan_utils.py'
+
+# directory_scan_utils imports its sibling metric_language_contract by bare name,
+# exactly as main.py arranges at runtime.
+if str(UTILS_ROOT) not in sys.path:
+    sys.path.insert(0, str(UTILS_ROOT))
 
 scan_spec = importlib.util.spec_from_file_location('directory_scan_utils', SCAN_UTILS_PATH)
 scan_module = importlib.util.module_from_spec(scan_spec)
