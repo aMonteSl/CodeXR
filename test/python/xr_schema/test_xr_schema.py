@@ -7,9 +7,11 @@ import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PYTHON_ROOT = PROJECT_ROOT / 'src' / 'code_analysis' / 'python'
-for extra_path in [PYTHON_ROOT, PYTHON_ROOT / 'utils', PYTHON_ROOT / 'livePanels', PYTHON_ROOT / 'XR']:
+for extra_path in [PYTHON_ROOT, PYTHON_ROOT / 'utils', PYTHON_ROOT / 'livePanels', PYTHON_ROOT / 'XR', Path(__file__).resolve().parents[1]]:
     if str(extra_path) not in sys.path:
         sys.path.insert(0, str(extra_path))
+
+from backend_sandbox import BackendModuleSandbox
 
 MAIN_MODULE_PATH = PYTHON_ROOT / 'main.py'
 XR_DIRECTORY_MODULE_PATH = PYTHON_ROOT / 'XR' / 'xr_directory_analysis_coordinator.py'
@@ -43,41 +45,36 @@ fake_lizard_module = types.ModuleType('lizard')
 fake_lizard_module.analyze_file = _fake_analyze_file
 fake_lizard_module.FileAnalyzer = lambda *args, **kwargs: _fake_analyze_file
 fake_lizard_module.get_extensions = lambda *_: []
-sys.modules['lizard'] = fake_lizard_module
 
-for module_name in [
-    'lizard_analyzer',
-    'file_analysis_engine',
-    'file_metric_summary',
-    'line_metric_utils',
-    'main',
-    'analysis_main',
-    'livePanel_file_analysis_coordinator',
-    'xr_file_analysis_coordinator',
-    'xr_directory_analysis_coordinator',
-]:
-    sys.modules.pop(module_name, None)
+# The fake lizard and every backend module bound to it live only while this
+# module's tests run: importing this file (which discovery does for every test
+# module up front) must not change what the other suites exercise.
+_sandbox = BackendModuleSandbox(PYTHON_ROOT, fake_lizard_module)
 
-main_spec = importlib.util.spec_from_file_location('analysis_main', MAIN_MODULE_PATH)
-main_module = importlib.util.module_from_spec(main_spec)
-main_spec.loader.exec_module(main_module)
+execute_schema_request = None
+analyze_directory_xr = None
+analyze_file_comprehensive = None
+analyze_file_for_xr = None
 
-xr_dir_spec = importlib.util.spec_from_file_location('xr_directory_analysis_coordinator', XR_DIRECTORY_MODULE_PATH)
-xr_dir_module = importlib.util.module_from_spec(xr_dir_spec)
-xr_dir_spec.loader.exec_module(xr_dir_module)
 
-file_spec = importlib.util.spec_from_file_location('livepanel_file_analysis_coordinator', FILE_COORDINATOR_PATH)
-file_module = importlib.util.module_from_spec(file_spec)
-file_spec.loader.exec_module(file_module)
+def _load_module(name, module_path):
+    spec = importlib.util.spec_from_file_location(name, module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
-xr_file_spec = importlib.util.spec_from_file_location('xr_file_analysis_coordinator', XR_FILE_COORDINATOR_PATH)
-xr_file_module = importlib.util.module_from_spec(xr_file_spec)
-xr_file_spec.loader.exec_module(xr_file_module)
 
-execute_schema_request = main_module.execute_schema_request
-analyze_directory_xr = xr_dir_module.analyze_directory_xr
-analyze_file_comprehensive = file_module.analyze_file_comprehensive
-analyze_file_for_xr = xr_file_module.analyze_file_for_xr
+def setUpModule():
+    global execute_schema_request, analyze_directory_xr, analyze_file_comprehensive, analyze_file_for_xr
+    _sandbox.enter()
+    execute_schema_request = _load_module('analysis_main', MAIN_MODULE_PATH).execute_schema_request
+    analyze_directory_xr = _load_module('xr_directory_analysis_coordinator', XR_DIRECTORY_MODULE_PATH).analyze_directory_xr
+    analyze_file_comprehensive = _load_module('livepanel_file_analysis_coordinator', FILE_COORDINATOR_PATH).analyze_file_comprehensive
+    analyze_file_for_xr = _load_module('xr_file_analysis_coordinator', XR_FILE_COORDINATOR_PATH).analyze_file_for_xr
+
+
+def tearDownModule():
+    _sandbox.exit()
 
 
 class XRSchemaContractTests(unittest.TestCase):

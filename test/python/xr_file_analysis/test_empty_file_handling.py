@@ -7,9 +7,11 @@ import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PYTHON_ROOT = PROJECT_ROOT / 'src' / 'code_analysis' / 'python'
-for extra_path in [PYTHON_ROOT, PYTHON_ROOT / 'utils', PYTHON_ROOT / 'tools']:
+for extra_path in [PYTHON_ROOT, PYTHON_ROOT / 'utils', PYTHON_ROOT / 'tools', Path(__file__).resolve().parents[1]]:
     if str(extra_path) not in sys.path:
         sys.path.insert(0, str(extra_path))
+
+from backend_sandbox import BackendModuleSandbox
 
 ENGINE_PATH = PYTHON_ROOT / 'utils' / 'file_analysis_engine.py'
 UTILS_PATH = PYTHON_ROOT / 'utils' / 'babia_path_utils.py'
@@ -45,20 +47,36 @@ fake_lizard_module = types.ModuleType('lizard')
 fake_lizard_module.analyze_file = _fake_analyze_file
 fake_lizard_module.FileAnalyzer = lambda *args, **kwargs: _fake_analyze_file
 fake_lizard_module.get_extensions = lambda *_: []
-sys.modules['lizard'] = fake_lizard_module
 
-engine_spec = importlib.util.spec_from_file_location('file_analysis_engine', ENGINE_PATH)
-engine_module = importlib.util.module_from_spec(engine_spec)
-engine_spec.loader.exec_module(engine_module)
+# See backend_sandbox.py: the fake lizard lives only while these tests run.
+_sandbox = BackendModuleSandbox(PYTHON_ROOT, fake_lizard_module)
 
-util_spec = importlib.util.spec_from_file_location('babia_path_utils', UTILS_PATH)
-util_module = importlib.util.module_from_spec(util_spec)
-util_spec.loader.exec_module(util_module)
+build_file_snapshot = None
+build_file_payload = None
+normalize_path_for_babia = None
+build_tree_path = None
 
-build_file_snapshot = engine_module.build_file_snapshot
-build_file_payload = engine_module.build_file_payload
-normalize_path_for_babia = util_module.normalize_path_for_babia
-build_tree_path = util_module.build_tree_path
+
+def _load_module(name, module_path):
+    spec = importlib.util.spec_from_file_location(name, module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def setUpModule():
+    global build_file_snapshot, build_file_payload, normalize_path_for_babia, build_tree_path
+    _sandbox.enter()
+    engine_module = _load_module('file_analysis_engine', ENGINE_PATH)
+    util_module = _load_module('babia_path_utils', UTILS_PATH)
+    build_file_snapshot = engine_module.build_file_snapshot
+    build_file_payload = engine_module.build_file_payload
+    normalize_path_for_babia = util_module.normalize_path_for_babia
+    build_tree_path = util_module.build_tree_path
+
+
+def tearDownModule():
+    _sandbox.exit()
 
 
 class EmptyFileHandlingTests(unittest.TestCase):
