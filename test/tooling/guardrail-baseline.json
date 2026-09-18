@@ -14,7 +14,8 @@
     "complexity.overN": "function-like nodes whose CCN exceeds N, where CCN = 1 + if + for/for-in/for-of + while + do + catch + ?: + case + && + || + ??, nested functions measured separately",
     "reachability.unreachable": "src modules with no import, export-from, import(), require() or import-type path from src/extension.ts (relative specifiers only)",
     "templates.consoleLog": "console.log( occurrences in templates/**/*.js, excluding the xr-chart-debug runtime whose console output is its tested contract",
-    "eslint.maxWarnings": "the --max-warnings value of the package.json \"lint\" script, or null when the script has none"
+    "eslint.maxWarnings": "the --max-warnings value of the package.json \"lint\" script, or null when the script has none",
+    "commands.internalByKind": "registered-but-uncontributed commands in test/commands/internalCommandIds.cjs, per kind; \"pending-removal\" is the unreachable debt"
   },
   "ratcheted": {
     "console.total": 1646,
@@ -132,7 +133,13 @@
       "src/visualize_data/views/index.ts"
     ],
     "templates.consoleLog": 117,
-    "eslint.maxWarnings": null
+    "eslint.maxWarnings": null,
+    "commands.internalByKind": {
+      "legacy-alias": 2,
+      "pending-removal": 17,
+      "programmatic": 2,
+      "tree-item": 32
+    }
   },
   "informational": {
     "src.files": 369,

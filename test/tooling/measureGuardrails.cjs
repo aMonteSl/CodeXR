@@ -43,6 +43,7 @@ const definitions = {
     'reachability.unreachable': 'src modules with no import, export-from, import(), require() or import-type path from src/extension.ts (relative specifiers only)',
     'templates.consoleLog': 'console.log( occurrences in templates/**/*.js, excluding the xr-chart-debug runtime whose console output is its tested contract',
     'eslint.maxWarnings': 'the --max-warnings value of the package.json "lint" script, or null when the script has none',
+    'commands.internalByKind': 'registered-but-uncontributed commands in test/commands/internalCommandIds.cjs, per kind; "pending-removal" is the unreachable debt',
 };
 
 function toPosix(filePath) {
@@ -339,10 +340,23 @@ function measureLintMaxWarnings() {
     return match ? Number(match[1]) : null;
 }
 
+function measureInternalCommands() {
+    const listPath = path.join(projectRoot, 'test', 'commands', 'internalCommandIds.cjs');
+    if (!fs.existsSync(listPath)) {
+        return {};
+    }
+    const byKind = {};
+    for (const entry of require(listPath).INTERNAL_COMMAND_IDS) {
+        increment(byKind, entry.kind);
+    }
+    return sortedObject(byKind);
+}
+
 function measure() {
     const source = measureSource();
     source.ratcheted['templates.consoleLog'] = measureTemplates();
     source.ratcheted['eslint.maxWarnings'] = measureLintMaxWarnings();
+    source.ratcheted['commands.internalByKind'] = measureInternalCommands();
     return {
         schemaVersion: 1,
         generatedBy: 'node test/tooling/measureGuardrails.cjs --write',
@@ -357,9 +371,104 @@ function readBaseline() {
     return JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
 }
 
-function writeBaseline(measurement) {
+/**
+ * Compares two `ratcheted` blocks. Every metric is "lower is better": a bigger
+ * number or a new list entry is WORSE; a smaller number or a vanished entry has
+ * MOVED in the right direction. Both must show up in the committed baseline -
+ * only a worse value is refused.
+ */
+function compareRatcheted(measured, baseline) {
+    const worse = [];
+    const moved = [];
+    const record = (target, metric, from, to, detail) => target.push({ metric, from, to, detail });
+
+    const compareNumber = (metric, from, to) => {
+        if (from === to) {
+            return;
+        }
+        if (from === null || from === undefined) {
+            // A metric that starts being measured (a lint ceiling that did not exist) is progress.
+            record(moved, metric, from, to, 'now measured');
+        } else if (to === null || to === undefined) {
+            record(worse, metric, from, to, 'no longer measured');
+        } else {
+            record(to > from ? worse : moved, metric, from, to);
+        }
+    };
+
+    const metrics = new Set([...Object.keys(baseline), ...Object.keys(measured)]);
+    for (const metric of [...metrics].sort()) {
+        const from = baseline[metric];
+        const to = measured[metric];
+
+        if (from === undefined) {
+            // A metric the baseline has never recorded cannot have regressed.
+            record(moved, metric, 'not measured', Array.isArray(to) ? to.length : JSON.stringify(to), 'now measured');
+            continue;
+        }
+
+        if (Array.isArray(from) || Array.isArray(to)) {
+            const before = new Set(from || []);
+            const after = new Set(to || []);
+            const added = [...after].filter((entry) => !before.has(entry)).sort();
+            const removed = [...before].filter((entry) => !after.has(entry)).sort();
+            if (added.length > 0) {
+                record(worse, metric, before.size, after.size, `new: ${added.join(', ')}`);
+            }
+            if (removed.length > 0) {
+                record(moved, metric, before.size, after.size, `gone: ${removed.join(', ')}`);
+            }
+        } else if ((from && typeof from === 'object') || (to && typeof to === 'object')) {
+            const keys = new Set([...Object.keys(from || {}), ...Object.keys(to || {})]);
+            for (const key of [...keys].sort()) {
+                const left = (from || {})[key] || 0;
+                const right = (to || {})[key] || 0;
+                if (metric === 'commands.internalByKind') {
+                    // Only the unreachable ones are a debt; the rest is pinned by the contract test.
+                    if (left !== right) {
+                        record(key === 'pending-removal' && right > left ? worse : moved, `${metric}.${key}`, left, right);
+                    }
+                } else {
+                    compareNumber(`${metric}.${key}`, left, right);
+                }
+            }
+        } else {
+            compareNumber(metric, from, to);
+        }
+    }
+    return { worse, moved };
+}
+
+function describeChange(change) {
+    const detail = change.detail ? ` (${change.detail})` : '';
+    return `${change.metric}: ${change.from} -> ${change.to}${detail}`;
+}
+
+/**
+ * Rewrites the baseline. A regression is refused unless it is explained:
+ * `--allow-regression "<reason>"` records a waiver (the expected use is a new
+ * lint rule that raises the warning ceiling once).
+ */
+function writeBaseline(measurement, options = {}) {
     const previous = fs.existsSync(baselinePath) ? readBaseline() : undefined;
-    const next = { ...measurement, waivers: previous ? previous.waivers : [] };
+    const waivers = previous ? previous.waivers.slice() : [];
+
+    if (previous) {
+        const { worse } = compareRatcheted(measurement.ratcheted, previous.ratcheted);
+        if (worse.length > 0 && !options.allowRegression) {
+            const error = new Error(
+                `Refusing to write a baseline that is worse than the committed one:\n  - ${worse.map(describeChange).join('\n  - ')}\n`
+                + 'Fix the regression, or rerun with --allow-regression "<reason>" to record a waiver.',
+            );
+            error.worse = worse;
+            throw error;
+        }
+        for (const change of worse) {
+            waivers.push({ metric: change.metric, from: change.from, to: change.to, reason: options.allowRegression, date: options.date });
+        }
+    }
+
+    const next = { ...measurement, waivers };
     fs.writeFileSync(baselinePath, `${JSON.stringify(next, null, 2)}\n`);
     return next;
 }
@@ -367,11 +476,22 @@ function writeBaseline(measurement) {
 if (require.main === module) {
     const measurement = measure();
     if (process.argv.includes('--write')) {
-        writeBaseline(measurement);
-        console.log(`Baseline written to ${toPosix(baselinePath)}`);
+        const flagIndex = process.argv.indexOf('--allow-regression');
+        const allowRegression = flagIndex >= 0 ? process.argv[flagIndex + 1] : undefined;
+        if (flagIndex >= 0 && !allowRegression) {
+            console.error('--allow-regression needs a reason.');
+            process.exit(1);
+        }
+        try {
+            writeBaseline(measurement, { allowRegression, date: new Date().toISOString().slice(0, 10) });
+            console.log(`Baseline written to ${toPosix(baselinePath)}`);
+        } catch (error) {
+            console.error(error.message);
+            process.exit(1);
+        }
     } else {
         console.log(JSON.stringify(measurement, null, 2));
     }
 }
 
-module.exports = { measure, readBaseline, writeBaseline, baselinePath, definitions };
+module.exports = { measure, readBaseline, writeBaseline, compareRatcheted, describeChange, baselinePath, definitions };
