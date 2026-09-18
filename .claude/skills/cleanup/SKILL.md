@@ -91,6 +91,6 @@ A cleanup with no number is a claim, not a result.
 
 - `npm run guardrails:measure` prints the source metrics (console calls, any, complexity, unreachable modules, large files…). When an item moves one, regenerate the baseline with `npm run guardrails:update` **in the same commit**: the `test/tooling/guardrail-baseline.json` diff is that item's recorded before/after.
 - In `V1.2.1_STATUS.md`, append to the session log: what was cleaned, the numbers, the gates that ran, what you deliberately left alone and why. Update the "Now" column of the tool-measured baseline when a row moves.
-- CHANGELOG `[1.2.1] – Unreleased`: only if a user could notice (smaller package, removed command, changed surface). Pure internal hygiene does not need a CHANGELOG line — say so rather than inventing one.
+- CHANGELOG `[1.2.1]` (provisional date, moved forward when the release is cut): add a line only if a user could notice (smaller package, removed command, changed surface). Internal hygiene is already summarized there under "Internal improvements"; it does not get a line per commit — say so rather than inventing one.
 
 Then close with the `session-close` skill. Branch is `v1.2.1`; **never commit to `master`**, and ask before any `git push`.

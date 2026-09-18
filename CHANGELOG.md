@@ -1,8 +1,22 @@
 # Changelog
 
-## [1.2.1] - Unreleased
+## [1.2.1] - 2026-09-18
 
-Maintenance release: code cleanup, optimization and internal hygiene. No new features — anything user-visible here is a removal of dead surface, a smaller package, or a faster path through code that already existed.
+### CodeXR 1.2.1: Internal Code Quality
+
+**This release adds no features.** Everything you could do in 1.2.0 you can do in 1.2.1, the same way, with the same results. What changed is on the inside: the code of the plugin itself was audited end to end and is being cleaned up so that the next versions can grow on solid ground. If you upgrade, you should notice nothing, and that is the goal.
+
+#### Internal improvements
+
+- **The whole codebase was audited before anything was touched.** Every module was measured (real cyclomatic complexity, duplicated code, modules nothing imports, commands nothing can reach) and each finding was checked twice by independent reviewers before being accepted. The result is a ranked, evidence-backed cleanup plan instead of a hunch.
+- **A much larger safety net.** The automated suite went from 554 to 708 checks on the extension side and from 29 to 52 on the Python analysis backend, and a large part of it now *executes* the plugin's code instead of only reading it. New checks cover the command surface against `package.json`, the logger, the language tables, the XR scene assets, the collaboration avatars, the offline historical comparison and the dependency engine, whose full output is now pinned by golden snapshots.
+- **Proof, not promises, that nothing was lost.** The shipped bundle is built deterministically and fingerprinted, so an internal change can be shown to leave it byte-for-byte identical. Code-health metrics (complexity, unused modules, leftover debug logging, loose typing) are measured automatically and can only improve from here: a change that makes any of them worse fails the build.
+- **Tests that cannot give a false green.** The test build now starts from a clean slate, refuses to run against stale output, and measures the per-language analysis fixtures with exactly the analyzer version the extension installs for you.
+- **Continuous integration.** The same gates a developer runs locally now run on Windows and Linux for every pull request.
+
+#### Fixed
+
+- A source file of the XR chart-mapping runtime contained a raw control character typed into a string. Behaviour was correct, but the file was invisible to code search and review tools. It now uses the equivalent escape sequence; the runtime value is identical.
 
 ## [1.2.0] - 2026-07-30
 

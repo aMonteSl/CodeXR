@@ -13,7 +13,7 @@
 5. **End-of-session checklist**:
    - [ ] Relevant tests pass (say which ones ran).
    - [ ] `V1.2.1_STATUS.md` updated if the version state changed — including the baseline row you moved.
-   - [ ] `CHANGELOG.md` "[1.2.1] – Unreleased" updated for user-visible changes (pure internal hygiene needs no entry — say so rather than inventing one).
+   - [ ] `CHANGELOG.md` `[1.2.1]` section updated for user-visible changes (pure internal hygiene is summarized there once, under "Internal improvements"; it does not get a line per commit).
    - [ ] Architecture/development docs updated if their subject changed.
    - [ ] Work committed on `v1.2.1` (never commit directly to `master`).
 

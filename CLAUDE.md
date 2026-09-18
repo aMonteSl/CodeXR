@@ -53,7 +53,7 @@ Full matrix and manual-validation flow: `.claude/docs/DEVELOPMENT.md`.
 2. Run `npm test` (plus the narrowest specialized script for the touched area) before declaring anything done. Never claim behavior works without a test run or the F5 flow. Note that `lint` inside that gate is currently weak — see `V1.2.1_STATUS.md` backlog item 1.
 3. Work on `v1.2.1` or a `feature/*` branch off it; never commit directly to `master`.
 4. Label claims: confirmed / self-assessed (docs claim it) / inferred / open question. Docs' status labels ("Implementado") are self-assessments, not verified facts.
-5. When you change the version state (cleanup lands, verification resolved), **update `.claude/docs/V1.2.1_STATUS.md` and the CHANGELOG "[1.2.1] – Unreleased" section in the same session**. Architecture changed → `ARCHITECTURE.md`; tooling changed → `DEVELOPMENT.md`; doc added → `INDEX.md`.
+5. When you change the version state (cleanup lands, verification resolved), **update `.claude/docs/V1.2.1_STATUS.md` and the CHANGELOG `[1.2.1]` section in the same session** (it carries a provisional date, moved forward when the release is cut). Architecture changed → `ARCHITECTURE.md`; tooling changed → `DEVELOPMENT.md`; doc added → `INDEX.md`.
 6. **v1.2.1 is maintenance only**: cleanup, optimization, hygiene. Changes are behaviour-neutral unless the CHANGELOG says otherwise; a new feature belongs in 1.3.0. Deadness is proved by grep, never assumed from a filename.
 
 ## Safety rules
