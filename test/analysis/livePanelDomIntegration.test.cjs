@@ -2,92 +2,42 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const Module = require('node:module');
-const ts = require('typescript');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
+const { createFakeVscode, withFakeVscode } = require(path.join(projectRoot, 'test', 'helpers', 'fakeVscode.cjs'));
 
 function readProjectFile(...segments) {
     return fs.readFileSync(path.join(projectRoot, ...segments), 'utf8');
 }
 
 /**
- * Loads the real, compiled LivePanelParser class with a stubbed `vscode` module,
- * so its actual runtime behavior (not just its source text) can be exercised —
+ * Loads the real, compiled LivePanelParser class with a fake `vscode` module,
+ * so its actual runtime behavior (not just its source text) can be exercised -
  * this is what would have caught the "extension not found" server-launch bug,
  * since `vscode.extensions.getExtension` is spied on and asserted never called.
  */
 function loadLivePanelParserWithStubbedVscode() {
-    const sourcePath = path.join(
-        projectRoot,
-        'src',
-        'code_analysis',
-        'engine',
-        'parsers',
-        'livePanelParser.ts',
-    );
-
     let getExtensionCallCount = 0;
-    const vscodeStub = {
-        ExtensionMode: { Development: 1, Production: 2, Test: 3 },
-        extensions: {
-            getExtension(id) {
-                getExtensionCallCount += 1;
-                throw new Error(`Unexpected vscode.extensions.getExtension('${id}') call — LivePanelParser must use context.extensionPath instead.`);
+    const fake = createFakeVscode({
+        overrides: {
+            extensions: {
+                getExtension(id) {
+                    getExtensionCallCount += 1;
+                    throw new Error(`Unexpected vscode.extensions.getExtension('${id}') call - LivePanelParser must use context.extensionPath instead.`);
+                },
             },
         },
-        window: {
-            createOutputChannel() {
-                return { appendLine() {}, };
-            },
-        },
-        workspace: {
-            getConfiguration() {
-                return { get: () => false };
-            },
-            onDidChangeConfiguration() {
-                return { dispose() {} };
-            },
-        },
-    };
+    });
 
-    const originalModuleRequire = Module.prototype.require;
-    Module.prototype.require = function (id) {
-        if (id === 'vscode') {
-            return vscodeStub;
-        }
-        return originalModuleRequire.apply(this, arguments);
-    };
+    // The scope closes as soon as the class is loaded: the parser and everything
+    // it imported stay usable, but nothing bound to this fake is left in
+    // require.cache for the suites that run after this one.
+    const { LivePanelParser } = withFakeVscode(fake, ({ requireOut }) => requireOut('code_analysis/engine/parsers/livePanelParser.js'));
 
-    const previousLoader = require.extensions['.ts'];
-    require.extensions['.ts'] = function compileTypeScript(module, filename) {
-        const source = fs.readFileSync(filename, 'utf8');
-        const transpiled = ts.transpileModule(source, {
-            compilerOptions: {
-                module: ts.ModuleKind.CommonJS,
-                target: ts.ScriptTarget.ES2022,
-                esModuleInterop: true,
-            },
-            fileName: filename,
-        }).outputText;
-        module._compile(transpiled, filename);
+    return {
+        LivePanelParser,
+        getExtensionCallCount: () => getExtensionCallCount,
     };
-
-    try {
-        delete require.cache[sourcePath];
-        const { LivePanelParser } = require(sourcePath);
-        return {
-            LivePanelParser,
-            getExtensionCallCount: () => getExtensionCallCount,
-        };
-    } finally {
-        if (previousLoader) {
-            require.extensions['.ts'] = previousLoader;
-        } else {
-            delete require.extensions['.ts'];
-        }
-        Module.prototype.require = originalModuleRequire;
-    }
 }
 
 function extractMethodBlock(source, methodName) {
