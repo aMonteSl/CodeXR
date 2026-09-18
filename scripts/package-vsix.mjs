@@ -22,6 +22,16 @@ if (existsSync(staleDistCertsPath)) {
     console.log(`Removed stale dist certificate directory before packaging: ${staleDistCertsPath}`);
 }
 
+// `npm run package:vsix` builds before it gets here, so a missing bundle means
+// the build failed or this script was started on its own. This used to be a
+// unit-test assertion, which made `npm test` depend on a webpack build it never
+// declared; the check belongs where it actually gates a package.
+const extensionBundlePath = resolve(workspaceRoot, 'dist', 'extension.js');
+if (!existsSync(extensionBundlePath)) {
+    console.error(`VSIX packaging is blocked because ${extensionBundlePath} does not exist. Run "npm run package" first.`);
+    process.exit(1);
+}
+
 // Source maps are a dev-build aid (webpack keeps emitting them for F5), but
 // they are dead weight in the shipped package — the extension.js.map alone is
 // ~3.5 MB — and vsce's `files` allowlist does not support negated patterns.

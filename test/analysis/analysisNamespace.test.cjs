@@ -5,7 +5,6 @@ const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
-const extensionBundlePath = path.join(projectRoot, 'dist', 'extension.js');
 
 function collectMenuCommandIds(menus) {
     return Object.values(menus)
@@ -23,10 +22,6 @@ test('analysis package contributions only expose codeXR.analysis.* commands', ()
     assert.ok(analysisCommandIds.includes('codeXR.analysis.activeAnalyses.refresh'));
     assert.equal(commandIds.includes(['codeXR.analysis', 'toggleBabiaUiXR'].join('.')), false);
     assert.equal(commandIds.some((commandId) => commandId.includes('newCodeAnalysis')), false);
-});
-
-test('packaged runtime exists before packaging or dev-host launch', () => {
-    assert.ok(fs.existsSync(extensionBundlePath), 'dist/extension.js must exist before packaging or dev-host launch');
 });
 
 test('analysis menus and contributes do not reference the legacy newCodeAnalysis namespace', () => {
