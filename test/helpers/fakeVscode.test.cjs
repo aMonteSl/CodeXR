@@ -112,6 +112,26 @@ test('unlisted APIs are callable, constructible and extendable; strict mode refu
     assert.equal(strict.vscode.window.showInformationMessage.name !== undefined, true);
 });
 
+test('strict mode still loads a compiled module that does `import * as vscode`', () => {
+    // tsc compiles that import to __importStar(require('vscode')), which reads
+    // vscode.__esModule before anything else. A strict fake that refused it could
+    // not load a single compiled module.
+    const fake = createFakeVscode({ strict: true });
+    const context = fakeExtensionContext();
+
+    try {
+        withFakeVscode(fake, ({ requireOut }) => {
+            const { CodeXRLogger } = requireOut('core/logging/logger.js');
+            CodeXRLogger.initialize(context);
+            CodeXRLogger.getLogger('STRICT').error('loaded');
+        });
+    } finally {
+        context.cleanup();
+    }
+
+    assert.match(fake.channels.get('CodeXR').lines[0], /\[ERROR\] \[STRICT\] loaded$/);
+});
+
 test('an auto-stub never looks like a promise', async () => {
     const { vscode } = createFakeVscode();
 

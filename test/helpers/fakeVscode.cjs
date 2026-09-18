@@ -277,7 +277,11 @@ function createNamespace(name, implementation, strict) {
             if (property in target || typeof property === 'symbol') {
                 return target[property];
             }
-            if (property === 'then') {
+            // `then` keeps a namespace from looking like a promise; `__esModule` is
+            // what tsc's __importStar / __importDefault read from EVERY module
+            // imported with `import * as vscode`. Neither is a vscode API, so
+            // strict mode must not refuse them.
+            if (property === 'then' || property === '__esModule') {
                 return undefined;
             }
             if (strict) {
