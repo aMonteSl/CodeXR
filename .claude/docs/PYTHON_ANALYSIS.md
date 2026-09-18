@@ -50,6 +50,16 @@ src/code_analysis/python/
 
 **Rule**: any metric added/renamed/removed in Python must flow through the schema, and the analysis/manual-metrics tests must be re-run. A mismatch surfaces as dimension-mapping validation failures or empty charts.
 
+**Do not touch in a cleanup (audited 2026-09-18).** The contract is five hops long (`xr_field_schema.py` → `get_xr_schema` → `main.py --mode schema` → `executePython.ts` → `xrFieldSchemaService.ts` → `dimensionValidator.ts`), frozen by tests on both sides, and the schema is **persisted** in the user's `globalState` (`codeXR.analysis.xrFieldSchemaCache.v1`), so a Python-side change can be masked locally and surface later as a mapping failure. Therefore none of these is cleanup material:
+- `XR_SCHEMA_VERSION` — a bump invalidates every user's cached schema.
+- The order, count and exact label strings of `XR_FILE_FIELDS` (13) and `XR_DIRECTORY_FIELDS` (25); `test/python/xr_schema/test_xr_schema.py` pins the counts.
+- The `_text_field(…)` / `_numeric_field(…)` call syntax — `test/analysis/xrFieldSchemaIntegration.test.cjs` regex-matches five of those source lines, double quotes included.
+- The `build_complexity_band` thresholds (`>25`, `>10`), mirrored in `lizard_analyzer.calculate_complexity_metrics` and `summarize_function_metrics`. Three copies on purpose: de-duplicating them is a contract change, not a cleanup.
+- `summarize_function_metrics` — Lizard reports CCN 18, but that is `or 0` guards inside comprehensions, not branching. Leave it alone.
+- Every id in `XR_DIRECTORY_FIELDS` must stay a key emitted by `utils/file_metric_summary.py`, and every id in `XR_FILE_FIELDS` a key emitted by `utils/file_analysis_engine.py` (subset checks in `test/analysis/manual_metrics_suite.py`).
+
+Python source is also pinned on **quote style and import order** by source-text tests (`main.py`'s `choices=['livePanel', …]`, `print('=== JSON_START ===')`, the imports that follow the `sys.path` setup). No formatter, no isort.
+
 ## Virtual environment (`src/python_env/`)
 
 - `runtime/venvManager.ts` creates/verifies/reinstalls the venv; package manifest and env UI state live alongside it. User-facing commands: `codeXR.pythonEnv.*` (create/delete/status/reinitialize/verify/debug).

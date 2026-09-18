@@ -18,6 +18,7 @@ Current work: **v1.2.1 — a maintenance release: cleanup, optimization, interna
 | `.claude/docs/PYTHON_ANALYSIS.md` | Python backend + field-schema contract |
 | `.claude/docs/XR_COMPONENTS.md` | Scene generation, browser runtimes, chart system |
 | `.claude/docs/V1.2.1_STATUS.md` | **Active** dated snapshot: cleanup backlog (ranked), baseline measurements, session log |
+| `.claude/docs/v1.2.1/ROADMAP.md` | **The v1.2.1 programme**: decisions, per-commit protocol, commit-by-commit tables per wave. Siblings: `AUDIT.md` (220 findings — grep it, never read it whole), `DESIGN_GUARDRAILS.md`, `DESIGN_STRUCTURAL.md`, `CRITIC_REVIEW.md` |
 | `.claude/docs/V1.2.0_STATUS.md` | Historical record of the closed 1.2.0 cycle; source of carried-over debt |
 | `.claude/docs/AI_WORKFLOWS.md` | Playbooks: feature, bug fix, refactor, docs, release prep |
 
@@ -48,7 +49,7 @@ Full matrix and manual-validation flow: `.claude/docs/DEVELOPMENT.md`.
 
 ## AI workflow rules
 
-1. **One feature, bug, refactor, or cleanup item per session.** Finish and validate before starting the next.
+1. **One feature, bug, or refactor per session.** Finish and validate before starting the next. In the v1.2.1 cleanup programme the unit is the **commit**: one roadmap item = one bisectable commit, several per session in roadmap order, gate after each.
 2. Run `npm test` (plus the narrowest specialized script for the touched area) before declaring anything done. Never claim behavior works without a test run or the F5 flow. Note that `lint` inside that gate is currently weak — see `V1.2.1_STATUS.md` backlog item 1.
 3. Work on `v1.2.1` or a `feature/*` branch off it; never commit directly to `master`.
 4. Label claims: confirmed / self-assessed (docs claim it) / inferred / open question. Docs' status labels ("Implementado") are self-assessments, not verified facts.

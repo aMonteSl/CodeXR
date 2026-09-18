@@ -6,7 +6,7 @@
 ## Universal session rules
 
 0. **Know the version's scope.** The active version is **v1.2.1, a maintenance release: cleanup, optimization and hygiene, no new features.** Read `V1.2.1_STATUS.md` for the ranked backlog and the baseline numbers. If a task would add user-visible behaviour, it belongs in 1.3.0 — say so instead of quietly widening 1.2.1.
-1. **One unit of work per session** — one feature, one bug, one refactor, one cleanup item, or one docs/release task. Finish and validate it before starting anything else.
+1. **One unit of work per session** — one feature, one bug, one refactor, or one docs/release task. Finish and validate it before starting anything else. **Exception — the v1.2.1 cleanup programme:** there the unit is the *commit*, not the session. One roadmap item = one bisectable commit, a session may land several in roadmap order with the gate run after each, and a red gate ends the session at the last green commit (`cleanup` skill §1).
 2. **Start from `INDEX.md`** and read only the documents mapped to your task type. Do not scan `src/` broadly; `src/code_analysis/` alone is 246 files.
 3. **Distinguish claim levels** in everything you report and write: confirmed (you verified it), self-assessed (a doc claims it), inferred, open question.
 4. **Validate before declaring done**: at minimum `npm run test:basic`; plus the narrowest specialized script for the touched area (matrix in `DEVELOPMENT.md`).
@@ -39,13 +39,13 @@
 
 Full procedure lives in the **`cleanup` skill** — invoke it. Summary:
 
-1. Read `V1.2.1_STATUS.md`: ranked backlog + baseline measurements. Take **one** item; do not bundle opportunistic extras (they destroy bisectability, which is the safety net of a cleanup branch).
-2. **Prove deadness, never assume it.** Grep across `src/`, `templates/`, `test/`, `package.json`. Two known traps: `debugThemeProblem.ts` looks dead but is a registered command (`commands/index.ts:15`), and `src/active_servers/views/` vs `src/views/active_servers/` is deliberate historical duplication (see §refactor rule 4).
-3. Reshaping a file → characterize first. Precedent: `httpServer.ts` 2,102 → 487 lines with a byte-identical characterization diff.
+1. Read `V1.2.1_STATUS.md` (where we are) and `v1.2.1/ROADMAP.md` §A-E plus your wave (what is next). **One roadmap item = one commit**; never fold two items together or add opportunistic extras (they destroy bisectability, which is the safety net of a cleanup branch). A characterization test and the reshaping it protects are two commits, test first.
+2. **Prove deadness, never assume it — four checks**: zero importers · no name/path-string reference in `src/ templates/ test/ scripts/ webpack.config.js package.json` · registers no command · **no test reads the file as text** (about half the unit tests regex the source of `src/` and `templates/`). Grep `v1.2.1/AUDIT.md` for the file first: every area ends with a "looks dead but is ALIVE" list. Two known traps: `debugThemeProblem.ts` looks dead but is a registered command (`commands/index.ts:15`), and `src/active_servers/views/` vs `src/views/active_servers/` is deliberate historical duplication (see §refactor rule 4).
+3. Reshaping a file → characterize first. Before touching file F, `grep -rn "<basename>" test/ scripts/` and classify each pin (**G** permanent guard: keep, retarget the haystack if F is split · **S** shape pin: a behavioural characterization lands in a prior commit · **L** log-literal: the text survives verbatim). Two standards prove nothing was lost: **H1** (unreachable file deleted, or types-only change) = `dist/extension.js` sha256 identical on the production build; **H2** (dead declaration in a live file) = reviewed dist shrink. Precedent: `httpServer.ts` 2,102 → 487 lines with a byte-identical characterization diff.
 4. Behaviour-neutral unless the CHANGELOG says otherwise. Users should notice a smaller package and nothing else.
-5. Off-limits in a cleanup session: git history rewrites (the 1.03 GiB pack is *propose only* — it breaks every clone), removing 1.1.0 upgrade migrations or published `Legacy*` command aliases, deleting docs.
+5. Off-limits in a cleanup session: git history rewrites (the 1.03 GiB pack is *propose only* — it breaks every clone), removing 1.1.0 upgrade migrations or published `Legacy*` command aliases, deleting docs or rewriting their history sections (a line-level drift fix travels with the commit that causes it), a blanket `eslint --fix` or any Python formatter (tests pin import lines and quote styles), the XR field-schema contract.
 6. Verify per the `verify` skill. Lint-config changes: land config + fallout together, never leave the gate red. Asset/`files` changes: `npm run package:vsix` and inspect the zip.
-7. Record the number. Update the baseline row in `V1.2.1_STATUS.md` and append a session-log entry. A cleanup with no measurement is a claim, not a result.
+7. Record the number. `npm run guardrails:update` regenerates `test/tooling/guardrail-baseline.json` in the same commit — that diff is the item's before/after. Append a session-log entry to `V1.2.1_STATUS.md` and move the "Now" column of its tool-measured baseline. A cleanup with no measurement is a claim, not a result.
 
 ## Playbook: refactor
 

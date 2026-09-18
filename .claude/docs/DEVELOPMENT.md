@@ -32,6 +32,8 @@
 | `npm run package:vsix` | `package` + `scripts/package-vsix.mjs` → builds the `.vsix` | Release preparation |
 | `npm run test:integration` | `@vscode/test-cli` — **currently targets `out/test/**/*.test.js`, which doesn't exist; the integration layer is unpopulated** | Don't rely on it (needs verification/setup) |
 | `npm run report:manual-metrics` | analysis test runner in report-only mode | Metric reports without assertions |
+| `npm run guardrails:measure` | `test/tooling/measureGuardrails.cjs` — prints the cleanup metrics from the TypeScript AST (~2 s): `console.*` per module, console-only catch blocks, `any`, suppressions, files over 500 lines, functions over 80 lines, CCN over 10/15/20/30, modules unreachable from `src/extension.ts`, `console.log` in `templates/`, the lint `--max-warnings` | Before and after any cleanup item |
+| `npm run guardrails:update` | Same script with `--write`: regenerates `test/tooling/guardrail-baseline.json` | In the **same commit** as a change that moves a metric — the baseline diff is that item's recorded before/after |
 
 **Test framework note**: unit tests are **`.test.cjs` files run by Node's native test runner** (`node --test`), *not* Mocha, despite `@types/mocha` being present (that belongs to the unpopulated integration layer). New unit tests go in `test/<area>/*.test.cjs`.
 
