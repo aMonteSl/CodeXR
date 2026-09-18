@@ -73,10 +73,15 @@ for (const candidate of getPythonCandidates()) {
     tryInterpreter(candidate);
 }
 
+// Locally a missing interpreter is a skip, so the rest of the gate stays usable.
+// Under CI it is a failure: a job that "passes" because it ran nothing protects
+// nothing.
+const skippedExitCode = process.env.CI ? 1 : 0;
+
 if (blockedBySandbox) {
     console.warn('TEST_RUNNER: Python interpreter detected, but this sandbox cannot execute it. Backend Python tests were skipped.');
-    process.exit(0);
+    process.exit(skippedExitCode);
 }
 
 console.warn('TEST_RUNNER: Python interpreter not available. Backend Python tests were skipped.');
-process.exit(0);
+process.exit(skippedExitCode);
