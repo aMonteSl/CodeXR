@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
+const { assertAbsent, normalizeEol } = require(path.join(projectRoot, 'test', 'helpers', 'sourceText.cjs'));
 
 function readProjectFile(...segments) {
     return fs.readFileSync(path.join(projectRoot, ...segments), 'utf8');
@@ -140,7 +141,15 @@ test('watcher configuration changes propagate to active sessions and directory r
     assert.match(directoryWatcher, /public async updateDebounceConfiguration\(\): Promise<void>/);
     assert.match(directoryWatcher, /if \(eventType === 'rename'\) \{/);
     assert.match(directoryWatcher, /this\.scheduleDebouncedReanalysis\(`rename-\$\{entryName\}`\)/);
-    assert.equal(directoryWatcher.includes("if (newDelayMs === -1) {\r\n                await this.stopWatching();"), false);
+    // A disabled delay must only cancel the pending debounce, never stop the
+    // watcher. The original guard spelled the forbidden text with a literal
+    // "\r\n", so it could only ever fire on a CRLF checkout and passed
+    // vacuously on LF. It is now whitespace-insensitive and carries a canary.
+    assertAbsent(
+        normalizeEol(directoryWatcher),
+        /if \(newDelayMs === -1\) \{\s*await this\.stopWatching\(\);/,
+        { canary: /if \(newDelayMs === -1\) \{\s*this\.debounceManager\?\.cancel\(\);/ },
+    );
     assert.match(analysisBootstrap, /resolveTrackedSystemPath\(session\.targetPath, entry\)/);
     assert.match(livePanelDirectoryRequirements, /return this\.analysisBootstrap\.bootstrap\(session, theme\);/);
 });
