@@ -118,11 +118,15 @@ test('plugin text sources contain no NUL bytes', () => {
     // A single raw NUL makes ripgrep (and git) classify the whole file as
     // binary and skip it silently, so every repo-wide search, dead-code proof
     // and lint sweep goes blind to it. Spell the character as an escape.
+    // .claude/ is covered too: the audit of this very problem quoted the byte
+    // verbatim and made its own 275 KB evidence file invisible to grep.
     const files = [
         ...collectTextFiles('src'),
         ...collectTextFiles('templates'),
         ...collectTextFiles('test'),
         ...collectTextFiles('scripts'),
+        ...collectTextFiles('docs'),
+        ...collectTextFiles('.claude'),
     ];
     const offenders = files.filter((filePath) => fs.readFileSync(filePath).includes(0));
     assert.deepEqual(offenders.map((filePath) => path.relative(projectRoot, filePath)), []);
