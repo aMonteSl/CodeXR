@@ -70,9 +70,25 @@ function ensureVenv(systemPython) {
     }
 }
 
+/**
+ * The extension installs an exact lizard version into the user's managed venv
+ * (src/python_env/runtime/pythonPackageManifest.ts). The fixtures must be
+ * measured with that same version, so the requirement is read from the
+ * manifest instead of being repeated here.
+ */
+function readPinnedLizardRequirement() {
+    const manifestPath = path.join(projectRoot, 'src', 'python_env', 'runtime', 'pythonPackageManifest.ts');
+    const manifest = fs.readFileSync(manifestPath, 'utf8');
+    const match = /distribution:\s*'lizard',[\s\S]*?version:\s*'([0-9][0-9A-Za-z.+-]*)'/.exec(manifest);
+    if (!match) {
+        throw new Error(`ANALYSIS_TEST_RUNNER: could not read the pinned lizard version from ${manifestPath}`);
+    }
+    return `lizard==${match[1]}`;
+}
+
 function installDependencies() {
     run(venvPython, ['-m', 'pip', 'install', '--upgrade', 'pip']);
-    run(venvPython, ['-m', 'pip', 'install', 'lizard']);
+    run(venvPython, ['-m', 'pip', 'install', readPinnedLizardRequirement()]);
 }
 
 function main() {
@@ -92,4 +108,8 @@ function main() {
     run(venvPython, ['scripts/report-manual-metrics.py']);
 }
 
-main();
+if (require.main === module) {
+    main();
+}
+
+module.exports = { readPinnedLizardRequirement };
