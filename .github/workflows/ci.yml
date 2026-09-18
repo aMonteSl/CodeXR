@@ -1,0 +1,133 @@
+name: CI
+
+# The same gates a developer runs locally, on every pull request to master.
+# Nothing here is CI-only: if it is green locally it should be green here, and
+# the other way round.
+#
+# Deliberately absent: secrets, third-party actions, coverage or telemetry
+# uploaders, and the browser harnesses (they need Playwright's Chromium and live
+# CDNs, so they stay a local, on-demand check).
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DO_NOT_TRACK: '1'
+  npm_config_audit: 'false'
+  npm_config_fund: 'false'
+  npm_config_update_notifier: 'false'
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+jobs:
+  gate:
+    name: npm test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # The repo is developed on Windows with a CRLF working tree; ubuntu is its
+    # first LF/POSIX run. It reports without blocking until its fallout is fixed,
+    # then this line goes and the job becomes required.
+    continue-on-error: ${{ matrix.os == 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # typecheck + lint + compile-tests + unit suites. Needs no webpack build.
+      - name: Gate
+        run: npm test
+
+  python:
+    name: python suites (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.os == 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup Python
+        id: python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # The runners only use Node builtins, so no npm ci here. With CI set, a
+      # runner that finds no interpreter fails instead of skipping.
+      - name: Backend unit suites
+        run: node test/runners/run-python-tests.cjs
+        env:
+          CODEXR_PYTHON: ${{ steps.python.outputs.python-path }}
+
+      # Builds a venv with the lizard version the extension pins for users and
+      # measures the per-language fixtures with it.
+      - name: Per-language analysis fixtures
+        run: node test/runners/run-analysis-tests.cjs
+
+      - name: HTML DOM analysis
+        run: node test/runners/run-html-analysis-tests.cjs
+
+  package:
+    name: package the VSIX
+    if: github.event_name != 'push'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Package
+        run: npm run package:vsix
+
+      # What ships, hashed: reviewers can compare two runs of a cleanup branch.
+      - name: Fingerprint dist
+        run: node scripts/dist-fingerprint.mjs --out dist-fingerprint.json
+
+      - name: Upload the VSIX and its fingerprint
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-xr-vsix
+          path: |
+            artifacts/*.vsix
+            dist-fingerprint.json
+          retention-days: 14
+          if-no-files-found: error
