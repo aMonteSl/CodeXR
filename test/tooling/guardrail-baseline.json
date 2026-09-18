@@ -1,0 +1,372 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "node test/tooling/measureGuardrails.cjs --write",
+  "definitions": {
+    "console.total": "CallExpression nodes whose callee is console.<log|warn|error|debug|info|trace> in src/**/*.ts (console calls inside template strings are text, not nodes, and are not counted)",
+    "console.byModule": "console.total grouped by the first directory under src/ (files directly in src/ count as \"(root)\")",
+    "catch.consoleOnly": "catch clauses with at least one statement where every statement is a console.* call",
+    "catch.emptyNoComment": "catch clauses with an empty block that also carries no comment explaining the swallow",
+    "any.total": "AnyKeyword type nodes in src/**/*.ts (\": any\", \"as any\", \"<any>\", \"any[]\", generic arguments)",
+    "any.byModule": "any.total grouped like console.byModule",
+    "suppressions.total": "occurrences of @ts-ignore, @ts-expect-error, @ts-nocheck or eslint-disable in src/**/*.ts",
+    "size.filesOver500": "src files with more than 500 physical lines",
+    "functions.over80Lines": "function-like nodes with a body spanning more than 80 physical lines",
+    "complexity.overN": "function-like nodes whose CCN exceeds N, where CCN = 1 + if + for/for-in/for-of + while + do + catch + ?: + case + && + || + ??, nested functions measured separately",
+    "reachability.unreachable": "src modules with no import, export-from, import(), require() or import-type path from src/extension.ts (relative specifiers only)",
+    "templates.consoleLog": "console.log( occurrences in templates/**/*.js, excluding the xr-chart-debug runtime whose console output is its tested contract",
+    "eslint.maxWarnings": "the --max-warnings value of the package.json \"lint\" script, or null when the script has none"
+  },
+  "ratcheted": {
+    "console.total": 1646,
+    "console.byModule": {
+      "active_servers": 127,
+      "babia_examples": 49,
+      "babia_templates": 72,
+      "code_analysis": 676,
+      "commands": 4,
+      "core": 1,
+      "python_env": 26,
+      "remote_access": 1,
+      "servers": 319,
+      "utils": 50,
+      "views": 130,
+      "visualization_settings": 83,
+      "visualize_data": 108
+    },
+    "catch.consoleOnly": 65,
+    "catch.emptyNoComment": 0,
+    "any.total": 219,
+    "any.byModule": {
+      "active_servers": 12,
+      "babia_templates": 3,
+      "code_analysis": 96,
+      "commands": 8,
+      "python_env": 6,
+      "servers": 13,
+      "utils": 14,
+      "views": 59,
+      "visualization_settings": 6,
+      "visualize_data": 2
+    },
+    "suppressions.total": 0,
+    "size.filesOver500": [
+      "src/active_servers/views/interactions/handleServerActions.ts",
+      "src/code_analysis/engine/utils/executePython.ts",
+      "src/code_analysis/export/exportManifest.ts",
+      "src/code_analysis/historical/gitRepositoryService.ts",
+      "src/code_analysis/historical/historicalComparisonService.ts",
+      "src/code_analysis/historical/projectEvolutionService.ts",
+      "src/code_analysis/refresh/analysisRefreshCoordinator.ts",
+      "src/code_analysis/views/subsections/active_analyses/commands/activeAnalysesCommands.ts",
+      "src/python_env/runtime/venvManager.ts",
+      "src/remote_access/security/remoteSessionAuthority.ts",
+      "src/remote_access/services/remoteAccessManager.ts",
+      "src/servers/runtime/broadcast/screenBroadcastSignalingServer.ts",
+      "src/servers/runtime/collaboration/collaborationRoomServer.ts",
+      "src/servers/runtime/httpServer.ts",
+      "src/servers/runtime/httpsCustomServer.ts",
+      "src/servers/runtime/multiServerLauncher.ts",
+      "src/views/ModularTreeDataProvider.ts",
+      "src/views/active_servers/items/activeServerItems.ts",
+      "src/visualize_data/views/interactions/visualizationLauncher.ts"
+    ],
+    "functions.over80Lines": 57,
+    "complexity.over10": 81,
+    "complexity.over15": 31,
+    "complexity.over20": 10,
+    "complexity.over30": 6,
+    "reachability.unreachable": [
+      "src/active_servers/views/index.ts",
+      "src/active_servers/views/items/serverItems.ts",
+      "src/babia_examples/views/index.ts",
+      "src/babia_templates/index.ts",
+      "src/babia_templates/processing/placeholders/index.ts",
+      "src/code_analysis/commands/index.ts",
+      "src/code_analysis/commands/subsections/active_analyses/index.ts",
+      "src/code_analysis/commands/subsections/analysis_settings/chart_type_directory/index.ts",
+      "src/code_analysis/commands/subsections/analysis_settings/chart_type_file/index.ts",
+      "src/code_analysis/commands/subsections/analysis_settings/dimension_mapping_directory/index.ts",
+      "src/code_analysis/commands/subsections/analysis_settings/dimension_mapping_file/index.ts",
+      "src/code_analysis/commands/subsections/analysis_settings/index.ts",
+      "src/code_analysis/commands/subsections/files_by_language/index.ts",
+      "src/code_analysis/commands/subsections/project_by_language/index.ts",
+      "src/code_analysis/config/analysisConfigurationManager.ts",
+      "src/code_analysis/configuration/configurationManager.ts",
+      "src/code_analysis/configuration/configurationManagerExample.ts",
+      "src/code_analysis/engine/components/customComponents/visualStyleComponentAsset.ts",
+      "src/code_analysis/engine/components/index.ts",
+      "src/code_analysis/engine/core/index.ts",
+      "src/code_analysis/engine/index.ts",
+      "src/code_analysis/engine/interfaces/fileRequirements.ts",
+      "src/code_analysis/engine/launchers/index.ts",
+      "src/code_analysis/engine/parsers/index.ts",
+      "src/code_analysis/engine/processors/index.ts",
+      "src/code_analysis/engine/processors/requirementRules/LivePanelDirectoryRequirements.ts",
+      "src/code_analysis/engine/processors/requirementRules/LivePanelFileRequirements.ts",
+      "src/code_analysis/engine/processors/requirementRules/VisualizeDOMRequirements.ts",
+      "src/code_analysis/engine/processors/requirementRules/XRDirectoryRequirements.ts",
+      "src/code_analysis/engine/processors/requirementRules/XRFileRequirements.ts",
+      "src/code_analysis/engine/servers/index.ts",
+      "src/code_analysis/engine/utils/directoryFilter.ts",
+      "src/code_analysis/engine/utils/index.ts",
+      "src/code_analysis/engine/watchers/index.ts",
+      "src/code_analysis/index.ts",
+      "src/code_analysis/model/analysisModel.ts",
+      "src/code_analysis/runtime/analysisEngine.ts",
+      "src/code_analysis/views/subsections/active_analyses/activeAnalysesSubsectionProvider.ts",
+      "src/code_analysis/views/subsections/active_analyses/index.ts",
+      "src/code_analysis/views/subsections/active_analyses/items/activeAnalysisItems.ts",
+      "src/code_analysis/views/subsections/active_analyses/model/activeAnalysisModel.ts",
+      "src/code_analysis/views/subsections/analysis_settings/dimension_mapping_file/index.ts",
+      "src/learn_more/index.ts",
+      "src/learn_more/views.ts",
+      "src/python_env/index.ts",
+      "src/python_env/views/index.ts",
+      "src/python_env/views/interactions/handlePythonEnvActions.ts",
+      "src/servers/config/defaultServerConfig.ts",
+      "src/servers/views/index.ts",
+      "src/utils/fileDisplayUtils.ts",
+      "src/views/analysis/index.ts",
+      "src/visualization_settings/views/index.ts",
+      "src/visualize_data/views/browseVisualizationsTreeView.ts",
+      "src/visualize_data/views/index.ts"
+    ],
+    "templates.consoleLog": 117,
+    "eslint.maxWarnings": null
+  },
+  "informational": {
+    "src.files": 369,
+    "src.lines": 52974,
+    "src.functions": 2864,
+    "src.unreachableLines": 2317,
+    "console.topFiles": [
+      {
+        "file": "src/code_analysis/engine/utils/executePython.ts",
+        "count": 126
+      },
+      {
+        "file": "src/servers/runtime/multiServerLauncher.ts",
+        "count": 54
+      },
+      {
+        "file": "src/active_servers/runtime/serverControl.ts",
+        "count": 46
+      },
+      {
+        "file": "src/code_analysis/configuration/debugThemeProblem.ts",
+        "count": 46
+      },
+      {
+        "file": "src/code_analysis/configuration/configurationManagerExample.ts",
+        "count": 44
+      },
+      {
+        "file": "src/code_analysis/engine/parsers/visualizeDOMParser.ts",
+        "count": 39
+      },
+      {
+        "file": "src/visualize_data/views/interactions/visualizationLauncher.ts",
+        "count": 39
+      },
+      {
+        "file": "src/active_servers/views/interactions/handleServerActions.ts",
+        "count": 38
+      },
+      {
+        "file": "src/servers/runtime/httpsDefaultServer.ts",
+        "count": 37
+      },
+      {
+        "file": "src/servers/runtime/sse/sseClientRegistry.ts",
+        "count": 34
+      },
+      {
+        "file": "src/visualization_settings/views/interactions/handleSettingsInteraction.ts",
+        "count": 32
+      },
+      {
+        "file": "src/babia_templates/processing/templateHTMLProcessor.ts",
+        "count": 30
+      },
+      {
+        "file": "src/servers/runtime/httpsCustomServer.ts",
+        "count": 30
+      },
+      {
+        "file": "src/code_analysis/commands/subsections/analysis_settings/profile_configuration/profileConfigurationCommands.ts",
+        "count": 27
+      },
+      {
+        "file": "src/babia_examples/runtime/exampleLauncher.ts",
+        "count": 26
+      }
+    ],
+    "any.topFiles": [
+      {
+        "file": "src/views/ModularTreeDataProvider.ts",
+        "count": 43
+      },
+      {
+        "file": "src/code_analysis/engine/utils/executePython.ts",
+        "count": 19
+      },
+      {
+        "file": "src/code_analysis/engine/watchers/directoryReanalysisData.ts",
+        "count": 17
+      },
+      {
+        "file": "src/code_analysis/views/subsections/active_analyses/services/activeAnalysesDataService.ts",
+        "count": 11
+      },
+      {
+        "file": "src/code_analysis/engine/watchers/directoryReAnalyzer.ts",
+        "count": 9
+      },
+      {
+        "file": "src/code_analysis/services/serverWatcherIntegration.ts",
+        "count": 8
+      },
+      {
+        "file": "src/code_analysis/views/subsections/active_analyses/commands/activeAnalysesCommands.ts",
+        "count": 7
+      },
+      {
+        "file": "src/active_servers/runtime/serverControl.ts",
+        "count": 5
+      },
+      {
+        "file": "src/commands/analysis/AnalysisCommands.ts",
+        "count": 5
+      },
+      {
+        "file": "src/python_env/runtime/venvManager.ts",
+        "count": 5
+      },
+      {
+        "file": "src/utils/commandBuilder.ts",
+        "count": 5
+      },
+      {
+        "file": "src/utils/jsonFieldAnalyzer.ts",
+        "count": 5
+      },
+      {
+        "file": "src/views/common/baseInterfaces.ts",
+        "count": 5
+      },
+      {
+        "file": "src/active_servers/registry/activeServerRegistry.ts",
+        "count": 4
+      },
+      {
+        "file": "src/servers/storage/serverSettingsManager.ts",
+        "count": 4
+      }
+    ],
+    "complexity.worst10": [
+      {
+        "ccn": 61,
+        "lines": 180,
+        "function": "buildExportManifest",
+        "file": "src/code_analysis/export/exportManifest.ts"
+      },
+      {
+        "ccn": 46,
+        "lines": 240,
+        "function": "runGitRevisionExport",
+        "file": "src/code_analysis/export/gitRevisionExportCore.ts"
+      },
+      {
+        "ccn": 45,
+        "lines": 269,
+        "function": "exportFolder",
+        "file": "src/code_analysis/views/subsections/active_analyses/commands/activeAnalysesCommands.ts"
+      },
+      {
+        "ccn": 42,
+        "lines": 117,
+        "function": "convertToSectionItem",
+        "file": "src/views/ModularTreeDataProvider.ts"
+      },
+      {
+        "ccn": 34,
+        "lines": 139,
+        "function": "parseFileAnalysis",
+        "file": "src/code_analysis/engine/parsers/fileXRParser.ts"
+      },
+      {
+        "ccn": 34,
+        "lines": 75,
+        "function": "<anonymous>",
+        "file": "src/code_analysis/engine/utils/executePython.ts"
+      },
+      {
+        "ccn": 26,
+        "lines": 100,
+        "function": "listReferences",
+        "file": "src/code_analysis/historical/gitRepositoryService.ts"
+      },
+      {
+        "ccn": 24,
+        "lines": 110,
+        "function": "executeXRAnalysis",
+        "file": "src/code_analysis/engine/utils/executePython.ts"
+      },
+      {
+        "ccn": 22,
+        "lines": 61,
+        "function": "handleDependencyGraphSettingsMessage",
+        "file": "src/servers/runtime/analysis/dependencyGraphBridge.ts"
+      },
+      {
+        "ccn": 21,
+        "lines": 58,
+        "function": "createModularChild",
+        "file": "src/views/ModularTreeDataProvider.ts"
+      }
+    ],
+    "size.largest10": [
+      {
+        "file": "src/servers/runtime/collaboration/collaborationRoomServer.ts",
+        "lines": 1175
+      },
+      {
+        "file": "src/python_env/runtime/venvManager.ts",
+        "lines": 852
+      },
+      {
+        "file": "src/active_servers/views/interactions/handleServerActions.ts",
+        "lines": 816
+      },
+      {
+        "file": "src/servers/runtime/broadcast/screenBroadcastSignalingServer.ts",
+        "lines": 782
+      },
+      {
+        "file": "src/code_analysis/views/subsections/active_analyses/commands/activeAnalysesCommands.ts",
+        "lines": 686
+      },
+      {
+        "file": "src/servers/runtime/multiServerLauncher.ts",
+        "lines": 678
+      },
+      {
+        "file": "src/code_analysis/historical/projectEvolutionService.ts",
+        "lines": 669
+      },
+      {
+        "file": "src/views/ModularTreeDataProvider.ts",
+        "lines": 634
+      },
+      {
+        "file": "src/remote_access/security/remoteSessionAuthority.ts",
+        "lines": 632
+      },
+      {
+        "file": "src/code_analysis/engine/utils/executePython.ts",
+        "lines": 630
+      }
+    ]
+  },
+  "waivers": []
+}
