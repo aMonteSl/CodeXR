@@ -824,6 +824,32 @@ test('chart data slice ranks, filters and de-duplicates rows for budgeted charts
     assert.equal(compute('boats', rows, mapping).length, rows.length);
 });
 
+test('chart data slice de-duplicates composite keys without merging neighbouring labels', () => {
+    const runtime = loadRuntime();
+    const compute = runtime.__testing.computeChartDataSlice;
+    // barsmap keys its elements by TWO dimensions (x_axis + z_axis). The key
+    // joins both labels with a separator no label can contain, so pairs that
+    // would collide under a printable or empty separator stay distinct.
+    const mapping = { x_axis: 'folder', z_axis: 'fileName', height: 'totalLines' };
+    const rows = [
+        { folder: 'a', fileName: 'bc', totalLines: 40 },
+        { folder: 'ab', fileName: 'c', totalLines: 30 },
+        { folder: 'a|b', fileName: 'c', totalLines: 20 },
+        { folder: 'a', fileName: 'b|c', totalLines: 10 },
+        // The only genuine duplicate: same folder AND same file name.
+        { folder: 'a', fileName: 'bc', totalLines: 5 },
+    ];
+
+    const slice = compute('barsmap', rows, mapping);
+
+    assert.equal(slice.length, 4, 'only the genuine (folder, fileName) duplicate collapses');
+    assert.deepEqual(
+        slice.map((row) => `${row.folder}/${row.fileName}:${row.totalLines}`),
+        ['a/bc:40', 'ab/c:30', 'a|b/c:20', 'a/b|c:10'],
+        'the highest-ranked row of each key survives, in rank order'
+    );
+});
+
 test('mapping UI chart selector and dimension grids share safe panel margins', () => {
     const runtime = loadRuntime();
     const layout = runtime.__testing.PANEL_LAYOUT;
